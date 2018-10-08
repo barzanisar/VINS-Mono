@@ -18,6 +18,7 @@ Estimator estimator;
 std::condition_variable con;
 double current_time = -1;
 queue<sensor_msgs::ImuConstPtr> imu_buf;
+queue<mav_msgs::TorqueThrustPtr> control_buf;
 queue<sensor_msgs::PointCloudConstPtr> feature_buf;
 queue<sensor_msgs::PointCloudConstPtr> relo_buf;
 int sum_of_wait = 0;
@@ -38,6 +39,11 @@ Eigen::Vector3d gyr_0;
 bool init_feature = 0;
 bool init_imu = 1;
 double last_imu_t = 0;
+double last_control_t = 0;
+double first_control_t = 0;
+bool first_imu_control_match = false;
+bool first_control_msg_received = false;
+//bool first_img_removed=false;
 
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 {
@@ -67,6 +73,7 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
     tmp_Q = tmp_Q * Utility::deltaQ(un_gyr * dt);
 
     Eigen::Vector3d un_acc_1 = tmp_Q * (linear_acceleration - tmp_Ba) - estimator.g;
+    //ROS_INFO_ONCE(tmp_Q);
 
     Eigen::Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
 
@@ -96,13 +103,13 @@ void update()
 }
 
 std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>>
-getMeasurements()
+getMeasurements0()
 {
     std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
-
+    
     while (true)
     {
-        if (imu_buf.empty() || feature_buf.empty())
+        if (imu_buf.empty() || feature_buf.empty() )
             return measurements;
 
         if (!(imu_buf.back()->header.stamp.toSec() > feature_buf.front()->header.stamp.toSec() + estimator.td))
@@ -115,27 +122,100 @@ getMeasurements()
         if (!(imu_buf.front()->header.stamp.toSec() < feature_buf.front()->header.stamp.toSec() + estimator.td))
         {
             ROS_WARN("throw img, only should happen at the beginning");
-            feature_buf.pop();
+            feature_buf.pop(); //pops front
             continue;
         }
         sensor_msgs::PointCloudConstPtr img_msg = feature_buf.front();
         feature_buf.pop();
 
         std::vector<sensor_msgs::ImuConstPtr> IMUs;
+        
         while (imu_buf.front()->header.stamp.toSec() < img_msg->header.stamp.toSec() + estimator.td)
         {
             IMUs.emplace_back(imu_buf.front());
             imu_buf.pop();
         }
         IMUs.emplace_back(imu_buf.front());
+        
         if (IMUs.empty())
             ROS_WARN("no imu between two image");
+        
         measurements.emplace_back(IMUs, img_msg);
+        printf("IMUs and control front, back and img timestamp: %f, %f, %f \n", IMUs.front()->header.stamp.toSec(), IMUs.back()->header.stamp.toSec(), img_msg->header.stamp.toSec());
+    
     }
-    return measurements;
+    return measurements; //never reached?
 }
 
-void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
+std::vector<std::pair<std::pair<std::vector<sensor_msgs::ImuConstPtr>,std::vector<mav_msgs::TorqueThrustPtr>>, sensor_msgs::PointCloudConstPtr>>
+//std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>>
+getMeasurements1()
+{
+    //std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
+    std::vector<std::pair<std::pair<std::vector<sensor_msgs::ImuConstPtr>,std::vector<mav_msgs::TorqueThrustPtr>>, sensor_msgs::PointCloudConstPtr>> measurements;
+
+    while (true)
+    {
+        if (imu_buf.empty() || feature_buf.empty() || control_buf.empty())
+            return measurements;
+
+        if (!(imu_buf.back()->header.stamp.toSec() > feature_buf.front()->header.stamp.toSec() + estimator.td) || !(control_buf.back()->header.stamp.toSec() > feature_buf.front()->header.stamp.toSec() + estimator.td))
+        {
+            //ROS_WARN("wait for imu, only should happen at the beginning");
+            sum_of_wait++;
+            return measurements;
+        }
+
+        if (!(imu_buf.front()->header.stamp.toSec() < feature_buf.front()->header.stamp.toSec() + estimator.td))
+        {
+            ROS_WARN("throw img, only should happen at the beginning");
+            feature_buf.pop(); //pops front
+            continue;
+        }
+
+        // if (!first_img_removed){
+        //     printf("Image to be removed: %f \n", feature_buf.front()->header.stamp.toSec());
+        //     feature_buf.pop();
+        //     if ((!feature_buf.empty()) && (abs(feature_buf.front()->header.stamp.toSec()-imu_buf.front()->header.stamp.toSec()) < 0.30))
+        //         {
+        //             printf("Another Image to be removed: %f \n", feature_buf.front()->header.stamp.toSec());
+        //             feature_buf.pop();
+        //         }
+        //     first_img_removed=true;
+        // }
+
+        // if (feature_buf.empty())
+        //     return measurements;
+
+        sensor_msgs::PointCloudConstPtr img_msg = feature_buf.front();
+        feature_buf.pop();
+
+        std::vector<sensor_msgs::ImuConstPtr> IMUs;
+        std::vector<mav_msgs::TorqueThrustPtr> controls;
+        while (imu_buf.front()->header.stamp.toSec() < img_msg->header.stamp.toSec() + estimator.td)
+        {
+            IMUs.emplace_back(imu_buf.front());
+            imu_buf.pop();
+
+            controls.emplace_back(control_buf.front());
+            control_buf.pop();
+        }
+        IMUs.emplace_back(imu_buf.front());
+        controls.emplace_back(control_buf.front());
+        if (IMUs.empty())
+            ROS_WARN("no imu between two image");
+        if (controls.empty())
+            ROS_WARN("no controls between two image");
+        measurements.emplace_back(std::make_pair(IMUs, controls), img_msg);
+        //measurements.emplace_back(IMUs, img_msg);
+        printf("IMUs and control front, back and img timestamp: %f, %f, %f, %f, %f \n", IMUs.front()->header.stamp.toSec(), controls.front()->header.stamp.toSec(), IMUs.back()->header.stamp.toSec(), controls.back()->header.stamp.toSec(), img_msg->header.stamp.toSec());
+        //printf("IMUs and control front, back and img timestamp: %f, %f, %f \n", IMUs.front()->header.stamp.toSec(), IMUs.back()->header.stamp.toSec(), img_msg->header.stamp.toSec());
+    
+    }
+    return measurements; //never reached?
+}
+
+void imu_callback0(const sensor_msgs::ImuConstPtr &imu_msg)
 {
     if (imu_msg->header.stamp.toSec() <= last_imu_t)
     {
@@ -148,6 +228,8 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     imu_buf.push(imu_msg);
     m_buf.unlock();
     con.notify_one();
+   
+    //ROS_DEBUG_STREAM("position: " << estimator.Ps[WINDOW_SIZE].transpose());
 
     last_imu_t = imu_msg->header.stamp.toSec();
 
@@ -159,8 +241,82 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
         if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
             pubLatestOdometry(tmp_P, tmp_Q, tmp_V, header);
     }
+
 }
 
+void imu_callback1(const sensor_msgs::ImuConstPtr &imu_msg)
+{
+    if (imu_msg->header.stamp.toSec() <= last_imu_t)
+    {
+        ROS_WARN("imu message in disorder!");
+        return;
+    }
+    last_imu_t = imu_msg->header.stamp.toSec();
+
+    if ((abs(last_imu_t - first_control_t)< 1e-6) && (!first_imu_control_match))
+    {   first_imu_control_match = true;
+        printf("imu_msg_stamp_sec: %f", imu_msg->header.stamp.toSec());
+    }
+
+    if (first_imu_control_match)
+    {
+        m_buf.lock();
+        imu_buf.push(imu_msg);
+        m_buf.unlock();
+        con.notify_one();
+
+        
+        //ROS_DEBUG_STREAM("position: " << estimator.Ps[WINDOW_SIZE].transpose());
+
+        last_imu_t = imu_msg->header.stamp.toSec();
+
+        {
+            std::lock_guard<std::mutex> lg(m_state);
+            predict(imu_msg);
+            std_msgs::Header header = imu_msg->header;
+            header.frame_id = "world";
+            if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
+                pubLatestOdometry(tmp_P, tmp_Q, tmp_V, header);
+        }
+
+    }
+}
+
+void control_inputs_callback(const mav_msgs::TorqueThrustPtr &torque_thrust_msg)
+{
+    if (torque_thrust_msg->header.stamp.toSec() <= last_control_t)
+    {
+        ROS_WARN("torque_thrust message in disorder!");
+        return;
+    }
+    last_control_t = torque_thrust_msg->header.stamp.toSec();
+
+    if (!first_control_msg_received)
+    {
+        first_control_t = torque_thrust_msg->header.stamp.toSec();
+        first_control_msg_received = true;
+        printf("control_msg_stamp_sec: %f", torque_thrust_msg->header.stamp.toSec());
+    }
+
+
+    m_buf.lock();
+    control_buf.push(torque_thrust_msg);
+    m_buf.unlock();
+    con.notify_one();
+
+
+    // last_control_t = torque_thrust_msg->header.stamp.toSec();
+
+    // {
+    //     std::lock_guard<std::mutex> lg(m_state);
+    //     predict(imu_msg);
+    //     std_msgs::Header header = imu_msg->header;
+    //     header.frame_id = "world";
+    //     if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
+    //         pubLatestOdometry(tmp_P, tmp_Q, tmp_V, header);
+    // }
+
+}
 
 void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 {
@@ -186,6 +342,8 @@ void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
             feature_buf.pop();
         while(!imu_buf.empty())
             imu_buf.pop();
+        while(!control_buf.empty())
+            control_buf.pop();
         m_buf.unlock();
         m_estimator.lock();
         estimator.clearState();
@@ -193,6 +351,7 @@ void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
         m_estimator.unlock();
         current_time = -1;
         last_imu_t = 0;
+        last_control_t = 0;
     }
     return;
 }
@@ -210,40 +369,59 @@ void process()
 {
     while (true)
     {
-        std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
+        //std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
+        std::vector<std::pair<std::pair<std::vector<sensor_msgs::ImuConstPtr>,std::vector<mav_msgs::TorqueThrustPtr>>, sensor_msgs::PointCloudConstPtr>> measurements;
         std::unique_lock<std::mutex> lk(m_buf);
         con.wait(lk, [&]
                  {
-            return (measurements = getMeasurements()).size() != 0;
+            return (measurements = getMeasurements1()).size() != 0;
                  });
         lk.unlock();
         m_estimator.lock();
         for (auto &measurement : measurements)
         {
             auto img_msg = measurement.second;
-            double dx = 0, dy = 0, dz = 0, rx = 0, ry = 0, rz = 0;
-            for (auto &imu_msg : measurement.first)
+            double dx = 0, dy = 0, dz = 0, rx = 0, ry = 0, rz = 0, Fz = 0, Tx = 0, Ty = 0, Tz = 0; //imu meas container
+            std::vector<sensor_msgs::ImuConstPtr>::iterator imu_it = measurement.first.first.begin(); 
+            std::vector<mav_msgs::TorqueThrustPtr>::iterator control_it = measurement.first.second.begin();
+            //auto imu_it = measurement.first.first.begin();
+            
+            for (; (imu_it!=measurement.first.first.end()) && (control_it!=measurement.first.second.end()); ++imu_it, ++control_it)//for (auto &imu_msg : measurement.first.first)
             {
-                double t = imu_msg->header.stamp.toSec();
+                double t = (*imu_it)->header.stamp.toSec();
+                
+                if (imu_it == measurement.first.first.begin()){
+                    ROS_DEBUG_STREAM("IMU begin time, acc: "<< t << "\t" << (*imu_it)->linear_acceleration.x << "\t" << (*imu_it)->linear_acceleration.y << "\t" << (*imu_it)->linear_acceleration.z);
+                }
+
+                if ((imu_it+1) == measurement.first.first.end()){
+                    ROS_DEBUG_STREAM("IMU frame end time, acc: " << t << "\t" << (*imu_it)->linear_acceleration.x << "\t" << (*imu_it)->linear_acceleration.y << "\t" << (*imu_it)->linear_acceleration.z);
+                }
+
                 double img_t = img_msg->header.stamp.toSec() + estimator.td;
                 if (t <= img_t)
                 { 
                     if (current_time < 0)
                         current_time = t;
-                    double dt = t - current_time;
+                    double dt = t - current_time; //this imu mes time - last imu mes time i.e. sampling time
                     ROS_ASSERT(dt >= 0);
-                    current_time = t;
-                    dx = imu_msg->linear_acceleration.x;
-                    dy = imu_msg->linear_acceleration.y;
-                    dz = imu_msg->linear_acceleration.z;
-                    rx = imu_msg->angular_velocity.x;
-                    ry = imu_msg->angular_velocity.y;
-                    rz = imu_msg->angular_velocity.z;
-                    estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
+                    current_time = t; // update last imu mes time to be equal to this imu mes time for next iter
+                    dx = (*imu_it)->linear_acceleration.x;
+                    dy = (*imu_it)->linear_acceleration.y;
+                    dz = (*imu_it)->linear_acceleration.z;
+                    rx = (*imu_it)->angular_velocity.x;
+                    ry = (*imu_it)->angular_velocity.y;
+                    rz = (*imu_it)->angular_velocity.z;
+
+                    Fz = (*control_it)->thrust.z;
+                    Tx = (*control_it)->torque.x;
+                    Ty = (*control_it)->torque.y;
+                    Tz = (*control_it)->torque.z;
+                    estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz), Fz, Vector3d(Tx, Ty, Tz));
                     //printf("imu: dt:%f a: %f %f %f w: %f %f %f\n",dt, dx, dy, dz, rx, ry, rz);
 
                 }
-                else
+                else // last imu meas whose time stamp is > img.timestamp + td 
                 {
                     double dt_1 = img_t - current_time;
                     double dt_2 = t - img_t;
@@ -253,13 +431,19 @@ void process()
                     ROS_ASSERT(dt_1 + dt_2 > 0);
                     double w1 = dt_2 / (dt_1 + dt_2);
                     double w2 = dt_1 / (dt_1 + dt_2);
-                    dx = w1 * dx + w2 * imu_msg->linear_acceleration.x;
-                    dy = w1 * dy + w2 * imu_msg->linear_acceleration.y;
-                    dz = w1 * dz + w2 * imu_msg->linear_acceleration.z;
-                    rx = w1 * rx + w2 * imu_msg->angular_velocity.x;
-                    ry = w1 * ry + w2 * imu_msg->angular_velocity.y;
-                    rz = w1 * rz + w2 * imu_msg->angular_velocity.z;
-                    estimator.processIMU(dt_1, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
+                    dx = w1 * dx + w2 * (*imu_it)->linear_acceleration.x;
+                    dy = w1 * dy + w2 * (*imu_it)->linear_acceleration.y;
+                    dz = w1 * dz + w2 * (*imu_it)->linear_acceleration.z;
+                    rx = w1 * rx + w2 * (*imu_it)->angular_velocity.x;
+                    ry = w1 * ry + w2 * (*imu_it)->angular_velocity.y;
+                    rz = w1 * rz + w2 * (*imu_it)->angular_velocity.z;
+
+                    Fz = w1 * Fz + w2 * (*control_it)->thrust.z;
+                    Tx = w1 * Tx + w2 * (*control_it)->torque.x;
+                    Ty = w1 * Ty + w2 * (*control_it)->torque.y;
+                    Tz = w1 * Tz + w2 * (*control_it)->torque.z;
+
+                    estimator.processIMU(dt_1, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz), Fz, Vector3d(Tx, Ty, Tz));
                     //printf("dimu: dt:%f a: %f %f %f w: %f %f %f\n",dt_1, dx, dy, dz, rx, ry, rz);
                 }
             }
@@ -293,12 +477,12 @@ void process()
             ROS_DEBUG("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
 
             TicToc t_s;
-            map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
+            map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image; // feature id, vector<camera id, xyz_uv_vel>
             for (unsigned int i = 0; i < img_msg->points.size(); i++)
             {
                 int v = img_msg->channels[0].values[i] + 0.5;
-                int feature_id = v / NUM_OF_CAM;
-                int camera_id = v % NUM_OF_CAM;
+                int feature_id = v / NUM_OF_CAM; //v bcz num of cam =1
+                int camera_id = v % NUM_OF_CAM; // 0 bcz num of cam =1 
                 double x = img_msg->points[i].x;
                 double y = img_msg->points[i].y;
                 double z = img_msg->points[i].z;
@@ -342,7 +526,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vins_estimator");
     ros::NodeHandle n("~");
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info); //Debug
     readParameters(n);
     estimator.setParameter();
 #ifdef EIGEN_DONT_PARALLELIZE
@@ -352,7 +536,8 @@ int main(int argc, char **argv)
 
     registerPub(n);
 
-    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback1, ros::TransportHints().tcpNoDelay()); // 2000 msgs queue size
+    ros::Subscriber sub_control_inputs = n.subscribe("/torque_thrust", 2000, control_inputs_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
