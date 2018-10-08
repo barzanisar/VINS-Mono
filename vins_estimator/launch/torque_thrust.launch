@@ -1,0 +1,5 @@
+<launch>
+
+    <node name="torque_thrust_node" pkg="vins_estimator" type="torque_thrust_node" output="screen" /> 
+
+</launch>

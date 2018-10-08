@@ -90,6 +90,11 @@ void odom_callback(const nav_msgs::OdometryConstPtr &odom_msg)
         return;
     }
 
+    ROS_INFO_STREAM_ONCE("R_W_LeicaR : " << std::endl << baseRgt.toRotationMatrix());
+    ROS_INFO_STREAM_ONCE("time_stamp_odom_est ns, sec : " << odom_msg->header.stamp << " " << odom_msg->header.stamp.toSec());
+    ROS_INFO_STREAM_ONCE("time_stamp_ground_truth  : " << benchmark[idx - 1].t);
+
+
     nav_msgs::Odometry odometry;
     odometry.header.stamp = ros::Time(benchmark[idx - 1].t);
     odometry.header.frame_id = "world";

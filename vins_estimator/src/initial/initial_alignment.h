@@ -18,8 +18,8 @@ class ImageFrame
         {
             points = _points;
         };
-        map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>> > > points;
-        double t;
+        map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>> > > points; //image meas
+        double t; //time stamp of image
         Matrix3d R;
         Vector3d T;
         IntegrationBase *pre_integration;

@@ -184,7 +184,7 @@ void MarginalizationInfo::marginalize()
 
     for (const auto &it : parameter_block_size)
     {
-        if (parameter_block_idx.find(it.first) == parameter_block_idx.end())
+        if (parameter_block_idx.find(it.first) == parameter_block_idx.end()) //the blocks that we don't want to drop
         {
             parameter_block_idx[it.first] = pos;
             pos += localSize(it.second);
@@ -340,8 +340,8 @@ bool MarginalizationFactor::Evaluate(double const *const *parameters, double *re
     //printf("jacobian %x\n", reinterpret_cast<long>(jacobians));
     //printf("residual %x\n", reinterpret_cast<long>(residuals));
     //}
-    int n = marginalization_info->n;
-    int m = marginalization_info->m;
+    int n = marginalization_info->n; //number of params we want to keep
+    int m = marginalization_info->m; //number of params we want to drop
     Eigen::VectorXd dx(n);
     for (int i = 0; i < static_cast<int>(marginalization_info->keep_block_size.size()); i++)
     {

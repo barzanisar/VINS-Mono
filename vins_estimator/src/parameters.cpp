@@ -9,6 +9,7 @@ std::vector<Eigen::Matrix3d> RIC;
 std::vector<Eigen::Vector3d> TIC;
 
 Eigen::Vector3d G{0.0, 0.0, 9.8};
+Eigen::Matrix3d INERTIA;
 
 double BIAS_ACC_THRESHOLD;
 double BIAS_GYR_THRESHOLD;
@@ -61,6 +62,7 @@ void readParameters(ros::NodeHandle &n)
     VINS_RESULT_PATH = OUTPUT_PATH + "/vins_result_no_loop.csv";
     std::cout << "result path " << VINS_RESULT_PATH << std::endl;
     std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
+    std::cout << "file is opened? " << !fout << " "<< fout.bad() << " "<< fout.fail()<< std::endl;
     fout.close();
 
     ACC_N = fsSettings["acc_n"];
@@ -110,6 +112,9 @@ void readParameters(ros::NodeHandle &n)
     INIT_DEPTH = 5.0;
     BIAS_ACC_THRESHOLD = 0.1;
     BIAS_GYR_THRESHOLD = 0.1;
+    INERTIA << 0.0347563, 0.0, 0.0, 
+               0.0, 0.0458929, 0.0, 
+               0.0, 0.0, 0.0977;
 
     TD = fsSettings["td"];
     ESTIMATE_TD = fsSettings["estimate_td"];

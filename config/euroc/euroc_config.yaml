@@ -3,7 +3,7 @@
 #common parameters
 imu_topic: "/imu0"
 image_topic: "/cam0/image_raw"
-output_path: "/home/tony-ws1/output/"
+output_path: "/home/barza/barza-vins-out/output"
 
 #camera calibration 
 model_type: PINHOLE
@@ -11,15 +11,15 @@ camera_name: camera
 image_width: 752
 image_height: 480
 distortion_parameters:
-   k1: -2.917e-01
-   k2: 8.228e-02
-   p1: 5.333e-05
-   p2: -1.578e-04
+   k1: -2.917e-01 #  -0.28340811
+   k2: 8.228e-02  # 0.07395907
+   p1: 5.333e-05  # 0.00019359
+   p2: -1.578e-04 # 1.76187114e-05
 projection_parameters:
-   fx: 4.616e+02
-   fy: 4.603e+02
-   cx: 3.630e+02
-   cy: 2.481e+02
+   fx: 4.616e+02  #    458.654
+   fy: 4.603e+02 #    457.296
+   cx: 3.630e+02 #    367.215
+   cy: 2.481e+02 #    248.375
 
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
@@ -56,10 +56,10 @@ max_num_iterations: 8   # max solver itrations, to guarantee real time
 keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
 
 #imu parameters       The more accurate parameters you provide, the better performance
-acc_n: 0.08          # accelerometer measurement noise standard deviation. #0.2   0.04
-gyr_n: 0.004         # gyroscope measurement noise standard deviation.     #0.05  0.004
-acc_w: 0.00004         # accelerometer bias random work noise standard deviation.  #0.02
-gyr_w: 2.0e-6       # gyroscope bias random work noise standard deviation.     #4.0e-5
+acc_n:  0.08          # accelerometer measurement noise standard deviation. #0.2   0.04      0.002 #
+gyr_n:  0.004         # gyroscope measurement noise standard deviation.     #0.05   1.6968e-04  #
+acc_w: 0.00004         # accelerometer bias random work noise standard deviation.  #0.02  0.003 #
+gyr_w: 2.0e-6       # gyroscope bias random work noise standard deviation.     #4.0e-5  1.9393e-05 # 
 g_norm: 9.81007     # gravity magnitude
 
 #loop closure parameters

@@ -44,9 +44,9 @@ class FeaturePerFrame
 class FeaturePerId
 {
   public:
-    const int feature_id;
-    int start_frame;
-    vector<FeaturePerFrame> feature_per_frame;
+    const int feature_id; //landmark id
+    int start_frame; // the first frame this landmark id was seen
+    vector<FeaturePerFrame> feature_per_frame; //xyz,uv,vx,vy meas for this landmark id in all the frames in the window 
 
     int used_num;
     bool is_outlier;
