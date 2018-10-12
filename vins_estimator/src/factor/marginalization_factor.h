@@ -30,7 +30,7 @@ struct ResidualBlockInfo
 
     int localSize(int size)
     {
-        return size == 7 ? 6 : size;
+        return size == 4 ? 3 : size; //size == 7 ? 6 : size;
     }
 };
 
@@ -48,7 +48,7 @@ class MarginalizationInfo
   public:
     ~MarginalizationInfo();
     int localSize(int size) const;
-    int globalSize(int size) const;
+    //int globalSize(int size) const;
     void addResidualBlockInfo(ResidualBlockInfo *residual_block_info);
     void preMarginalize();
     void marginalize();

@@ -208,7 +208,7 @@ getMeasurements1()
             ROS_WARN("no controls between two image");
         measurements.emplace_back(std::make_pair(IMUs, controls), img_msg);
         //measurements.emplace_back(IMUs, img_msg);
-        printf("IMUs and control front, back and img timestamp: %f, %f, %f, %f, %f \n", IMUs.front()->header.stamp.toSec(), controls.front()->header.stamp.toSec(), IMUs.back()->header.stamp.toSec(), controls.back()->header.stamp.toSec(), img_msg->header.stamp.toSec());
+        //printf("IMUs and control front, back and img timestamp: %f, %f, %f, %f, %f \n", IMUs.front()->header.stamp.toSec(), controls.front()->header.stamp.toSec(), IMUs.back()->header.stamp.toSec(), controls.back()->header.stamp.toSec(), img_msg->header.stamp.toSec()); //buzz
         //printf("IMUs and control front, back and img timestamp: %f, %f, %f \n", IMUs.front()->header.stamp.toSec(), IMUs.back()->header.stamp.toSec(), img_msg->header.stamp.toSec());
     
     }
@@ -526,7 +526,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vins_estimator");
     ros::NodeHandle n("~");
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info); //Debug
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug); //Debug
     readParameters(n);
     estimator.setParameter();
 #ifdef EIGEN_DONT_PARALLELIZE

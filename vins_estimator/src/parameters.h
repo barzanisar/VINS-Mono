@@ -15,7 +15,7 @@ const int NUM_OF_F = 1000;
 
 const double MASS = 1.56779;
 extern Eigen::Matrix3d INERTIA;
-const double PROPELLER_FORCE_N = 0.1; //prop force std
+const double PROPELLER_FORCE_N = 0.01; //prop force std
 const bool APPLY_MODEL_PREINTEGRATION = 1;
 
 
@@ -50,10 +50,17 @@ void readParameters(ros::NodeHandle &n);
 
 enum SIZE_PARAMETERIZATION
 {
-    SIZE_POSE = 7, // 3 translation, 4 quaternion 
-    SIZE_SPEEDBIAS = 9, // 3v,3ba,3bg
+    SIZE_POSITION = 3, // 3 translation 
+    SIZE_ATTITUDE = 4, //  4 quaternion
+    SIZE_SPEED = 3, // 3v
+    SIZE_BIAS = 6, // 3ba, 3bg
+    //SIZE_BIAS_ACC = 3,
+    //SIZE_BIAS_GYR = 3, //3bg
+    //SIZE_SPEEDBIAS = 9,
     SIZE_FEATURE = 1, // 1/Zc for each landmark
-    SIZE_FORCES = 3
+    SIZE_FORCES = 3,
+
+    //SIZE_POSE = 7 // for extrinsic pose
 
 };
 
@@ -68,10 +75,10 @@ enum StateOrder
 
 enum NoiseOrder
 {
-    O_AN = 0,
+    O_AN = 0, // noise
     O_GN = 3,
-    O_AW = 6,
+    O_AW = 6, // bias random walk
     O_GW = 9,
-    O_UN = 10 // change this, index for noise in utot i.e. in Fz
+    O_UN = 10 // change this, index for noise in utot i.e. in body Fx
 
 };

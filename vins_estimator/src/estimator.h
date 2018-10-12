@@ -14,7 +14,7 @@
 
 #include <ceres/ceres.h>
 #include "factor/imu_factor.h"
-//#include "factor/model_factor.h"
+#include "factor/model_factor.h"
 #include "factor/pose_local_parameterization.h"
 #include "factor/projection_factor.h"
 #include "factor/projection_td_factor.h"
@@ -113,14 +113,17 @@ class Estimator
     double initial_timestamp;
 
 
-    double para_Pose[WINDOW_SIZE + 1][SIZE_POSE];
-    double para_SpeedBias[WINDOW_SIZE + 1][SIZE_SPEEDBIAS];
+    double para_Position[WINDOW_SIZE + 1][SIZE_POSITION];
+    double para_Attitude[WINDOW_SIZE + 1][SIZE_ATTITUDE];
+    double para_Speed[WINDOW_SIZE + 1][SIZE_SPEED];
+    double para_Bias[WINDOW_SIZE + 1][SIZE_BIAS];
     double para_Fext[WINDOW_SIZE + 1][SIZE_FORCES]; //Fx,Fy,Fz at frames
     double para_Feature[NUM_OF_F][SIZE_FEATURE];
-    double para_Ex_Pose[NUM_OF_CAM][SIZE_POSE];
-    double para_Retrive_Pose[SIZE_POSE];
+    double para_Ex_Position[NUM_OF_CAM][SIZE_POSITION];
+    double para_Ex_Attitude[NUM_OF_CAM][SIZE_ATTITUDE];
+    //double para_Retrive_Pose[SIZE_POSE];
     double para_Td[1][1];
-    double para_Tr[1][1];
+    //double para_Tr[1][1];
 
     int loop_window_index;
 
@@ -136,7 +139,9 @@ class Estimator
     double relo_frame_index;
     int relo_frame_local_index;
     vector<Vector3d> match_points;
-    double relo_Pose[SIZE_POSE];
+    //double relo_Pose[SIZE_POSE];
+    double relo_Position[SIZE_POSITION];
+    double relo_Attitude[SIZE_ATTITUDE];
     Matrix3d drift_correct_r;
     Vector3d drift_correct_t;
     Vector3d prev_relo_t;

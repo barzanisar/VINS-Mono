@@ -53,7 +53,6 @@ void Estimator::clearState()
     sum_of_back = 0;
     sum_of_front = 0;
     frame_count = 0;
-    solver_flag = INITIAL;
     initial_timestamp = 0;
     all_image_frame.clear();
     td = TD;
@@ -77,7 +76,7 @@ void Estimator::clearState()
     drift_correct_t = Vector3d::Zero();
 }
 
-void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity, double Fz, const Vector3d &torque)
+void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity, double Fz, const Vector3d &torque) // Fz is actually thrust in the body x axis which points upwards opposite gravity when quad is at hover
 {
     if (!first_imu)
     {
@@ -99,9 +98,9 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
         if (frame_count< 3){
             ROS_DEBUG_STREAM(" frame_count: " << frame_count << " am_1 " << linear_acceleration.transpose());
         }
-        pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity, Fz_0, torque_0);
+        pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity, Fz, torque);
         //if(solver_flag != NON_LINEAR)
-            tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity, Fz_0, torque_0);
+            tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity, Fz, torque);
 
         dt_buf[frame_count].push_back(dt);
         linear_acceleration_buf[frame_count].push_back(linear_acceleration);
@@ -113,13 +112,14 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
         Vector3d un_acc_0 = Rs[j] * (acc_0 - Bas[j]) - g;
         //Vector3d body_thrust_0(0.0, 0.0, Fz_0);
         //Vector3d control_acc_0 = (Rs[j] * body_thrust_0 + Fexts[j])/MASS - g;
-        Vector3d control_acc_0 = (Rs[j].rightCols<1>() * Fz_0 + Fexts[j])/MASS - g;
+        ROS_DEBUG_STREAM_ONCE(" Gravity " << g.transpose());
+        Vector3d control_acc_0 = (Rs[j].leftCols<1>() * Fz_0 + Fexts[j])/MASS - g;
         Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - Bgs[j];
         Rs[j] *= Utility::deltaQ(un_gyr * dt).toRotationMatrix();
         Vector3d un_acc_1 = Rs[j] * (linear_acceleration - Bas[j]) - g;
         //Vector3d body_thrust_1(0.0, 0.0, Fz);
         //Vector3d control_acc_1 = (Rs[j] * body_thrust_1 + Fexts[j])/MASS - g;
-        Vector3d control_acc_1 = (Rs[j].rightCols<1>() * Fz + Fexts[j])/MASS - g;
+        Vector3d control_acc_1 = (Rs[j].leftCols<1>() * Fz + Fexts[j])/MASS - g;
         //un_acc_0 = 0.5 * (un_acc_0 + control_acc_0);
         //un_acc_1 = 0.5 * (un_acc_1 + control_acc_1);
         Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
@@ -504,26 +504,26 @@ void Estimator::vector2double() // put estimates or initial guess into parameter
 {
     for (int i = 0; i <= WINDOW_SIZE; i++)
     {
-        para_Pose[i][0] = Ps[i].x();
-        para_Pose[i][1] = Ps[i].y();
-        para_Pose[i][2] = Ps[i].z();
+        para_Position[i][0] = Ps[i].x();
+        para_Position[i][1] = Ps[i].y();
+        para_Position[i][2] = Ps[i].z();
         Quaterniond q{Rs[i]};
-        para_Pose[i][3] = q.x();
-        para_Pose[i][4] = q.y();
-        para_Pose[i][5] = q.z();
-        para_Pose[i][6] = q.w();
+        para_Attitude[i][0] = q.x(); // para_Pose[i][3] , 4, 5, 6
+        para_Attitude[i][1] = q.y();
+        para_Attitude[i][2] = q.z();
+        para_Attitude[i][3] = q.w();
 
-        para_SpeedBias[i][0] = Vs[i].x();
-        para_SpeedBias[i][1] = Vs[i].y();
-        para_SpeedBias[i][2] = Vs[i].z();
+        para_Speed[i][0] = Vs[i].x();
+        para_Speed[i][1] = Vs[i].y();
+        para_Speed[i][2] = Vs[i].z();
 
-        para_SpeedBias[i][3] = Bas[i].x();
-        para_SpeedBias[i][4] = Bas[i].y();
-        para_SpeedBias[i][5] = Bas[i].z();
+        para_Bias[i][0] = Bas[i].x();
+        para_Bias[i][1] = Bas[i].y();
+        para_Bias[i][2] = Bas[i].z();
 
-        para_SpeedBias[i][6] = Bgs[i].x();
-        para_SpeedBias[i][7] = Bgs[i].y();
-        para_SpeedBias[i][8] = Bgs[i].z();
+        para_Bias[i][3] = Bgs[i].x();
+        para_Bias[i][4] = Bgs[i].y();
+        para_Bias[i][5] = Bgs[i].z();
 
         para_Fext[i][0] = Fexts[i].x();
         para_Fext[i][1] = Fexts[i].y();
@@ -531,14 +531,14 @@ void Estimator::vector2double() // put estimates or initial guess into parameter
     }
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
-        para_Ex_Pose[i][0] = tic[i].x();
-        para_Ex_Pose[i][1] = tic[i].y();
-        para_Ex_Pose[i][2] = tic[i].z();
+        para_Ex_Position[i][0] = tic[i].x();
+        para_Ex_Position[i][1] = tic[i].y();
+        para_Ex_Position[i][2] = tic[i].z();
         Quaterniond q{ric[i]};
-        para_Ex_Pose[i][3] = q.x();
-        para_Ex_Pose[i][4] = q.y();
-        para_Ex_Pose[i][5] = q.z();
-        para_Ex_Pose[i][6] = q.w();
+        para_Ex_Attitude[i][0] = q.x();
+        para_Ex_Attitude[i][1] = q.y();
+        para_Ex_Attitude[i][2] = q.z();
+        para_Ex_Attitude[i][3] = q.w();
     }
 
     VectorXd dep = f_manager.getDepthVector();
@@ -559,42 +559,42 @@ void Estimator::double2vector()
         origin_P0 = last_P0;
         failure_occur = 0;
     }
-    Vector3d origin_R00 = Utility::R2ypr(Quaterniond(para_Pose[0][6], // optimized Rs[0]
-                                                      para_Pose[0][3],
-                                                      para_Pose[0][4],
-                                                      para_Pose[0][5]).toRotationMatrix());
+    Vector3d origin_R00 = Utility::R2ypr(Quaterniond(para_Attitude[0][3], // optimized Rs[0]
+                                                      para_Attitude[0][0],
+                                                      para_Attitude[0][1],
+                                                      para_Attitude[0][2]).toRotationMatrix());
     double y_diff = origin_R0.x() - origin_R00.x(); // yaw diff between initial guess/previous optimization result and current optimiresult for pose at 0
     //TODO
     Matrix3d rot_diff = Utility::ypr2R(Vector3d(y_diff, 0, 0));
     if (abs(abs(origin_R0.y()) - 90) < 1.0 || abs(abs(origin_R00.y()) - 90) < 1.0)
     {
         ROS_DEBUG("euler singular point!");
-        rot_diff = Rs[0] * Quaterniond(para_Pose[0][6],
-                                       para_Pose[0][3],
-                                       para_Pose[0][4],
-                                       para_Pose[0][5]).toRotationMatrix().transpose();
+        rot_diff = Rs[0] * Quaterniond(para_Attitude[0][3],
+                                       para_Attitude[0][0],
+                                       para_Attitude[0][1],
+                                       para_Attitude[0][2]).toRotationMatrix().transpose();
     }
 
     for (int i = 0; i <= WINDOW_SIZE; i++) //updating initial guess with estimated states/optimization results
     {
 
-        Rs[i] = rot_diff * Quaterniond(para_Pose[i][6], para_Pose[i][3], para_Pose[i][4], para_Pose[i][5]).normalized().toRotationMatrix();
+        Rs[i] = rot_diff * Quaterniond(para_Attitude[i][3], para_Attitude[i][0], para_Attitude[i][1], para_Attitude[i][2]).normalized().toRotationMatrix();
         
-        Ps[i] = rot_diff * Vector3d(para_Pose[i][0] - para_Pose[0][0],
-                                para_Pose[i][1] - para_Pose[0][1],
-                                para_Pose[i][2] - para_Pose[0][2]) + origin_P0;
+        Ps[i] = rot_diff * Vector3d(para_Position[i][0] - para_Position[0][0],
+                                para_Position[i][1] - para_Position[0][1],
+                                para_Position[i][2] - para_Position[0][2]) + origin_P0;
 
-        Vs[i] = rot_diff * Vector3d(para_SpeedBias[i][0],
-                                    para_SpeedBias[i][1],
-                                    para_SpeedBias[i][2]);
+        Vs[i] = rot_diff * Vector3d(para_Speed[i][0],
+                                    para_Speed[i][1],
+                                    para_Speed[i][2]);
 
-        Bas[i] = Vector3d(para_SpeedBias[i][3],
-                          para_SpeedBias[i][4],
-                          para_SpeedBias[i][5]);
+        Bas[i] = Vector3d(para_Bias[i][0],
+                          para_Bias[i][1],
+                          para_Bias[i][2]);
 
-        Bgs[i] = Vector3d(para_SpeedBias[i][6],
-                          para_SpeedBias[i][7],
-                          para_SpeedBias[i][8]);
+        Bgs[i] = Vector3d(para_Bias[i][0],
+                          para_Bias[i][1],
+                          para_Bias[i][2]);
 
         Fexts[i] = Vector3d(para_Fext[i][0],
                             para_Fext[i][1],
@@ -603,13 +603,13 @@ void Estimator::double2vector()
 
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
-        tic[i] = Vector3d(para_Ex_Pose[i][0],
-                          para_Ex_Pose[i][1],
-                          para_Ex_Pose[i][2]);
-        ric[i] = Quaterniond(para_Ex_Pose[i][6],
-                             para_Ex_Pose[i][3],
-                             para_Ex_Pose[i][4],
-                             para_Ex_Pose[i][5]).toRotationMatrix();
+        tic[i] = Vector3d(para_Ex_Position[i][0],
+                          para_Ex_Position[i][1],
+                          para_Ex_Position[i][2]);
+        ric[i] = Quaterniond(para_Ex_Attitude[i][3],
+                             para_Ex_Attitude[i][0],
+                             para_Ex_Attitude[i][1],
+                             para_Ex_Attitude[i][2]).toRotationMatrix();
     }
 
     VectorXd dep = f_manager.getDepthVector();
@@ -624,10 +624,10 @@ void Estimator::double2vector()
     { 
         Matrix3d relo_r;
         Vector3d relo_t;
-        relo_r = rot_diff * Quaterniond(relo_Pose[6], relo_Pose[3], relo_Pose[4], relo_Pose[5]).normalized().toRotationMatrix();
-        relo_t = rot_diff * Vector3d(relo_Pose[0] - para_Pose[0][0],
-                                     relo_Pose[1] - para_Pose[0][1],
-                                     relo_Pose[2] - para_Pose[0][2]) + origin_P0;
+        relo_r = rot_diff * Quaterniond(relo_Attitude[3], relo_Attitude[0], relo_Attitude[1], relo_Attitude[2]).normalized().toRotationMatrix();
+        relo_t = rot_diff * Vector3d(relo_Position[0] - para_Position[0][0],
+                                     relo_Position[1] - para_Position[0][1],
+                                     relo_Position[2] - para_Position[0][2]) + origin_P0;
         double drift_correct_yaw;
         drift_correct_yaw = Utility::R2ypr(prev_relo_r).x() - Utility::R2ypr(relo_r).x();
         drift_correct_r = Utility::ypr2R(Vector3d(drift_correct_yaw, 0, 0));
@@ -701,18 +701,22 @@ void Estimator::optimization()
     for (int i = 0; i < WINDOW_SIZE + 1; i++)
     {
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
-        problem.AddParameterBlock(para_Pose[i], SIZE_POSE, local_parameterization);
-        problem.AddParameterBlock(para_SpeedBias[i], SIZE_SPEEDBIAS);
-        problem.AddParameterBlock(para_Fext[i], SIZE_FORCES);
+        problem.AddParameterBlock(para_Position[i], SIZE_POSITION);
+        problem.AddParameterBlock(para_Attitude[i], SIZE_ATTITUDE, local_parameterization);
+        problem.AddParameterBlock(para_Speed[i], SIZE_SPEED);
+        problem.AddParameterBlock(para_Bias[i], SIZE_BIAS);
+        //problem.AddParameterBlock(para_Fext[i], SIZE_FORCES);
     }
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
-        problem.AddParameterBlock(para_Ex_Pose[i], SIZE_POSE, local_parameterization);
+        problem.AddParameterBlock(para_Ex_Position[i], SIZE_POSITION);
+        problem.AddParameterBlock(para_Ex_Attitude[i], SIZE_ATTITUDE, local_parameterization);
         if (!ESTIMATE_EXTRINSIC)
         {
             ROS_DEBUG("fix extinsic param");
-            problem.SetParameterBlockConstant(para_Ex_Pose[i]);
+            problem.SetParameterBlockConstant(para_Ex_Position[i]);
+            problem.SetParameterBlockConstant(para_Ex_Attitude[i]);
         }
         else
             ROS_DEBUG("estimate extinsic param");
@@ -740,9 +744,10 @@ void Estimator::optimization()
         if (pre_integrations[j]->sum_dt > 10.0)
             continue;
         IMUFactor* imu_factor = new IMUFactor(pre_integrations[j]); // starts with preinteg[1] and para_pose 0,1 and ends adding preinteg[10]
-        problem.AddResidualBlock(imu_factor, NULL, para_Pose[i], para_SpeedBias[i], para_Pose[j], para_SpeedBias[j], para_Fext[i]);
-        // ModelFactor* model_factor = new ModelFactor(pre_integrations[j]); // starts with preinteg[1] and para_pose 0,1 and ends adding preinteg[10]
-        // problem.AddResidualBlock(model_factor, NULL, para_Pose[i], para_SpeedBias[i], para_Fext[i], para_Pose[j], para_SpeedBias[j]); //we want model_factor, NULL, para_Pose[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]
+        problem.AddResidualBlock(imu_factor, NULL, para_Position[i], para_Attitude[i], para_Speed[i], para_Bias[i], para_Position[j], para_Attitude[j], para_Speed[j], para_Bias[j]);
+    /*    ModelFactor* model_factor = new ModelFactor(pre_integrations[j]); // starts with preinteg[1] and para_pose 0,1 and ends adding preinteg[10]
+        problem.AddResidualBlock(model_factor, NULL, para_Position[i], para_Attitude[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]); //we want model_factor, NULL, para_Pose[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]
+*/    
     }
     int f_m_cnt = 0;
     int feature_index = -1;
@@ -771,7 +776,7 @@ void Estimator::optimization()
                     ProjectionTdFactor *f_td = new ProjectionTdFactor(pts_i, pts_j, it_per_id.feature_per_frame[0].velocity, it_per_frame.velocity,
                                                                      it_per_id.feature_per_frame[0].cur_td, it_per_frame.cur_td,
                                                                      it_per_id.feature_per_frame[0].uv.y(), it_per_frame.uv.y());
-                    problem.AddResidualBlock(f_td, loss_function, para_Pose[imu_i], para_Pose[imu_j], para_Ex_Pose[0], para_Feature[feature_index], para_Td[0]);
+                    problem.AddResidualBlock(f_td, loss_function, para_Position[imu_i], para_Attitude[imu_i], para_Position[imu_j], para_Attitude[imu_j], para_Ex_Position[0], para_Ex_Attitude[0], para_Feature[feature_index], para_Td[0]);
                     /*
                     double **para = new double *[5];
                     para[0] = para_Pose[imu_i];
@@ -785,7 +790,7 @@ void Estimator::optimization()
             else
             {
                 ProjectionFactor *f = new ProjectionFactor(pts_i, pts_j); //start frame meas for a feature and the next frame's meas
-                problem.AddResidualBlock(f, loss_function, para_Pose[imu_i], para_Pose[imu_j], para_Ex_Pose[0], para_Feature[feature_index]);
+                problem.AddResidualBlock(f, loss_function, para_Position[imu_i], para_Attitude[imu_i], para_Position[imu_j], para_Attitude[imu_j], para_Ex_Position[0], para_Ex_Attitude[0], para_Feature[feature_index]);
             }
             f_m_cnt++; // number of landmark residuals i.e. getFeatureCount * (feature_pre_frame.size - 1) i.e. total number of landmarks accepted in the window * (their total measurements - 1 ) i.e. -start frame meas)  
         }
@@ -798,7 +803,8 @@ void Estimator::optimization()
     {
         //printf("set relocalization factor! \n");
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
-        problem.AddParameterBlock(relo_Pose, SIZE_POSE, local_parameterization);
+        problem.AddParameterBlock(relo_Position, SIZE_POSITION);
+        problem.AddParameterBlock(relo_Attitude, SIZE_ATTITUDE, local_parameterization);
         int retrive_feature_index = 0;
         int feature_index = -1;
         for (auto &it_per_id : f_manager.feature)
@@ -820,7 +826,7 @@ void Estimator::optimization()
                     Vector3d pts_i = it_per_id.feature_per_frame[0].point;
                     
                     ProjectionFactor *f = new ProjectionFactor(pts_i, pts_j);
-                    problem.AddResidualBlock(f, loss_function, para_Pose[start], relo_Pose, para_Ex_Pose[0], para_Feature[feature_index]);
+                    problem.AddResidualBlock(f, loss_function, para_Position[start], para_Attitude[start], relo_Position, relo_Attitude, para_Ex_Position[0], para_Ex_Attitude[0], para_Feature[feature_index]);
                     retrive_feature_index++;
                 }     
             }
@@ -864,9 +870,11 @@ void Estimator::optimization()
             vector<int> drop_set;
             for (int i = 0; i < static_cast<int>(last_marginalization_parameter_blocks.size()); i++)
             {
-                if (last_marginalization_parameter_blocks[i] == para_Pose[0] ||
-                    last_marginalization_parameter_blocks[i] == para_SpeedBias[0] || 
-                    last_marginalization_parameter_blocks[i] == para_Fext[0]) // or external force[0]
+                if (last_marginalization_parameter_blocks[i] == para_Position[0] ||
+                    last_marginalization_parameter_blocks[i] == para_Attitude[0] ||
+                    last_marginalization_parameter_blocks[i] == para_Speed[0] || 
+                    last_marginalization_parameter_blocks[i] == para_Bias[0] ) //||
+                    //last_marginalization_parameter_blocks[i] == para_Fext[0]) // or external force[0]
                     drop_set.push_back(i);
             }
             // construct new marginlization_factor
@@ -883,22 +891,22 @@ void Estimator::optimization()
             {
                 IMUFactor* imu_factor = new IMUFactor(pre_integrations[1]);
                 ResidualBlockInfo *residual_block_info = new ResidualBlockInfo(imu_factor, NULL,
-                                                                           vector<double *>{para_Pose[0], para_SpeedBias[0], para_Pose[1], para_SpeedBias[1], para_Fext[0]},
-                                                                           vector<int>{0, 1, 4}); // index of parameter blocks to drop, i.e. drop para_Pose[0], para_SpeedBias[0]
+                                                                           vector<double *>{para_Position[0], para_Attitude[0], para_Speed[0], para_Bias[0], para_Position[1], para_Attitude[1], para_Speed[1], para_Bias[1]},
+                                                                           vector<int>{0, 1, 2, 3}); // index of parameter blocks to drop, i.e. drop para_Pose[0], para_SpeedBias[0]
                 marginalization_info->addResidualBlockInfo(residual_block_info);
             }
         }
 
-        // {
-        //     if (pre_integrations[1]->sum_dt < 10.0)
-        //     {
-        //         ModelFactor* model_factor = new ModelFactor(pre_integrations[1]);
-        //         ResidualBlockInfo *residual_block_info = new ResidualBlockInfo(model_factor, NULL,
-        //                                                                    vector<double *>{para_Pose[0], para_SpeedBias[0], para_Fext[0], para_Pose[1], para_SpeedBias[1]},
-        //                                                                    vector<int>{0, 1, 2}); // index of parameter blocks to drop, i.e. drop para_Pose[0], para_SpeedBias[0], para_Fext[0]
-        //         marginalization_info->addResidualBlockInfo(residual_block_info);
-        //     }
-        // }
+        /*{
+            if (pre_integrations[1]->sum_dt < 10.0)
+            {
+                ModelFactor* model_factor = new ModelFactor(pre_integrations[1]);
+                ResidualBlockInfo *residual_block_info = new ResidualBlockInfo(model_factor, NULL,
+                                                                           vector<double *>{para_Position[0], para_Attitude[0], para_Speed[0], para_Fext[0], para_Position[1], para_Speed[1]},
+                                                                           vector<int>{0, 1, 2, 3}); // index of parameter blocks to drop, i.e. drop para_Pose[0], para_SpeedBias[0], para_Fext[0]
+                marginalization_info->addResidualBlockInfo(residual_block_info);
+            }
+        }*/
 
         {
             int feature_index = -1;
@@ -929,16 +937,16 @@ void Estimator::optimization()
                                                                           it_per_id.feature_per_frame[0].cur_td, it_per_frame.cur_td,
                                                                           it_per_id.feature_per_frame[0].uv.y(), it_per_frame.uv.y());
                         ResidualBlockInfo *residual_block_info = new ResidualBlockInfo(f_td, loss_function,
-                                                                                        vector<double *>{para_Pose[imu_i], para_Pose[imu_j], para_Ex_Pose[0], para_Feature[feature_index], para_Td[0]},
-                                                                                        vector<int>{0, 3});
+                                                                                        vector<double *>{para_Position[imu_i], para_Attitude[imu_i], para_Position[imu_j], para_Attitude[imu_j], para_Ex_Position[0], para_Ex_Attitude[0], para_Feature[feature_index], para_Td[0]},
+                                                                                        vector<int>{0, 1, 6});
                         marginalization_info->addResidualBlockInfo(residual_block_info);
                     }
                     else
                     {
                         ProjectionFactor *f = new ProjectionFactor(pts_i, pts_j); // pts_i: start frame landmark meas, pts_j: other frames landmark meas
                         ResidualBlockInfo *residual_block_info = new ResidualBlockInfo(f, loss_function,
-                                                                                       vector<double *>{para_Pose[imu_i], para_Pose[imu_j], para_Ex_Pose[0], para_Feature[feature_index]},
-                                                                                       vector<int>{0, 3}); //para_Pose[imu_i] and para_Feature[feature_index] marginalized so we marg start pose of the window and all the features which are visible in frame 0
+                                                                                       vector<double *>{para_Position[imu_i], para_Attitude[imu_i], para_Position[imu_j], para_Attitude[imu_j], para_Ex_Position[0], para_Ex_Attitude[0], para_Feature[feature_index]},
+                                                                                       vector<int>{0, 1, 6}); //para_Pose[imu_i] and para_Feature[feature_index] marginalized so we marg start pose of the window and all the features which are visible in frame 0
                         marginalization_info->addResidualBlockInfo(residual_block_info);
                     }
                 }
@@ -956,12 +964,17 @@ void Estimator::optimization()
         std::unordered_map<long, double *> addr_shift;
         for (int i = 1; i <= WINDOW_SIZE; i++)
         {
-            addr_shift[reinterpret_cast<long>(para_Pose[i])] = para_Pose[i - 1];
-            addr_shift[reinterpret_cast<long>(para_SpeedBias[i])] = para_SpeedBias[i - 1];
+            addr_shift[reinterpret_cast<long>(para_Position[i])] = para_Position[i - 1];
+            addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i - 1];
+            addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i - 1];
+            addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i - 1];
             addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
         }
         for (int i = 0; i < NUM_OF_CAM; i++)
-            addr_shift[reinterpret_cast<long>(para_Ex_Pose[i])] = para_Ex_Pose[i];
+        {   
+            addr_shift[reinterpret_cast<long>(para_Ex_Position[i])] = para_Ex_Position[i];
+            addr_shift[reinterpret_cast<long>(para_Ex_Attitude[i])] = para_Ex_Attitude[i];
+        }
         if (ESTIMATE_TD)
         {
             addr_shift[reinterpret_cast<long>(para_Td[0])] = para_Td[0];
@@ -977,7 +990,8 @@ void Estimator::optimization()
     else
     {
         if (last_marginalization_info &&
-            std::count(std::begin(last_marginalization_parameter_blocks), std::end(last_marginalization_parameter_blocks), para_Pose[WINDOW_SIZE - 1]))
+            (std::count(std::begin(last_marginalization_parameter_blocks), std::end(last_marginalization_parameter_blocks), para_Position[WINDOW_SIZE - 1]) ||
+            std::count(std::begin(last_marginalization_parameter_blocks), std::end(last_marginalization_parameter_blocks), para_Attitude[WINDOW_SIZE - 1])))
         {
 
             MarginalizationInfo *marginalization_info = new MarginalizationInfo();
@@ -987,9 +1001,11 @@ void Estimator::optimization()
                 vector<int> drop_set;
                 for (int i = 0; i < static_cast<int>(last_marginalization_parameter_blocks.size()); i++)
                 {
-                    ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_SpeedBias[WINDOW_SIZE - 1]);
+                    ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Speed[WINDOW_SIZE - 1]);
+                    ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Bias[WINDOW_SIZE - 1]);
                     ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Fext[WINDOW_SIZE - 1]); //why need this?
-                    if (last_marginalization_parameter_blocks[i] == para_Pose[WINDOW_SIZE - 1])
+                    if (last_marginalization_parameter_blocks[i] == para_Position[WINDOW_SIZE - 1] ||
+                        last_marginalization_parameter_blocks[i] == para_Attitude[WINDOW_SIZE - 1])
                         drop_set.push_back(i);
                 }
                 // construct new marginlization_factor
@@ -1018,19 +1034,26 @@ void Estimator::optimization()
                     continue;
                 else if (i == WINDOW_SIZE)
                 {
-                    addr_shift[reinterpret_cast<long>(para_Pose[i])] = para_Pose[i - 1];
-                    addr_shift[reinterpret_cast<long>(para_SpeedBias[i])] = para_SpeedBias[i - 1];
+                    addr_shift[reinterpret_cast<long>(para_Position[i])] = para_Position[i - 1];
+                    addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i - 1];
+                    addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i - 1];
+                    addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i - 1];
                     addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
                 }
                 else
                 {
-                    addr_shift[reinterpret_cast<long>(para_Pose[i])] = para_Pose[i];
-                    addr_shift[reinterpret_cast<long>(para_SpeedBias[i])] = para_SpeedBias[i];
+                    addr_shift[reinterpret_cast<long>(para_Position[i])] = para_Position[i];
+                    addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i];
+                    addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i];
+                    addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i];
                     addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
                 }
             }
             for (int i = 0; i < NUM_OF_CAM; i++)
-                addr_shift[reinterpret_cast<long>(para_Ex_Pose[i])] = para_Ex_Pose[i];
+            {
+                addr_shift[reinterpret_cast<long>(para_Ex_Position[i])] = para_Ex_Position[i];
+                addr_shift[reinterpret_cast<long>(para_Ex_Attitude[i])] = para_Ex_Attitude[i];
+            }
             if (ESTIMATE_TD)
             {
                 addr_shift[reinterpret_cast<long>(para_Td[0])] = para_Td[0];
@@ -1189,8 +1212,10 @@ void Estimator::setReloFrame(double _frame_stamp, int _frame_index, vector<Vecto
         {
             relo_frame_local_index = i;
             relocalization_info = 1;
-            for (int j = 0; j < SIZE_POSE; j++)
-                relo_Pose[j] = para_Pose[i][j];
+            for (int j = 0; j < SIZE_POSITION; j++)
+                relo_Position[j] = para_Position[i][j];
+            for (int j = 0; j < SIZE_ATTITUDE; j++)
+                relo_Attitude[j] = para_Attitude[i][j];
         }
     }
 }

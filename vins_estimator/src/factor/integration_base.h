@@ -89,8 +89,8 @@ class IntegrationBase
         //ROS_INFO("midpoint integration");
         Vector3d un_acc_0 = delta_q * (_acc_0 - linearized_ba);
         Vector3d un_gyr = 0.5 * (_gyr_0 + _gyr_1) - linearized_bg;
-        Vector3d body_thrust_0 (0.0, 0.0, _Fz_0);
-        Vector3d body_thrust_1 (0.0, 0.0, _Fz_1);
+        Vector3d body_thrust_0 (_Fz_0 / MASS, 0.0, 0.0); // body x axis is pointing upwards against gravity. This is now acc due to body thrust. 
+        Vector3d body_thrust_1 (_Fz_1 / MASS, 0.0, 0.0);
         Vector3d control_acc_0 = delta_q * body_thrust_0; // delta_q.toRotationMatrix() * body_thrust_0;
 
         result_delta_q = delta_q * Quaterniond(1, un_gyr(0) * _dt / 2, un_gyr(1) * _dt / 2, un_gyr(2) * _dt / 2);
@@ -141,14 +141,13 @@ class IntegrationBase
             F_model.block<3, 3>(0, 6) = MatrixXd::Identity(3,3) * _dt;
             //F.block<3, 3>(0, 9) = -0.25 * (delta_q.toRotationMatrix() + result_delta_q.toRotationMatrix()) * _dt * _dt;
             F_model.block<3, 3>(0, 9) = -0.25 * result_delta_q.toRotationMatrix() * R_F_1_x * _dt * _dt * -_dt;
-            F_model.block<3, 3>(3, 3) = Matrix3d::Identity() - R_w_x * _dt; // delta_q
-            F_model.block<3, 3>(3, 9) = -1.0 * MatrixXd::Identity(3,3) * _dt; // delta_q
-            F_model.block<3, 3>(6, 3) = -0.5 * delta_q.toRotationMatrix() * R_F_0_x * _dt + 
+            F_model.block<3, 3>(3, 3) = Matrix3d::Identity() - R_w_x * _dt; // delta_q wrt delta q
+            F_model.block<3, 3>(3, 9) = -1.0 * MatrixXd::Identity(3,3) * _dt; // delta_q wrt bw
+            F_model.block<3, 3>(6, 3) = -0.5 * delta_q.toRotationMatrix() * R_F_0_x * _dt +  // delta v wrt delta q
                                   -0.5 * result_delta_q.toRotationMatrix() * R_F_1_x * (Matrix3d::Identity() - R_w_x * _dt) * _dt;
-            F_model.block<3, 3>(6, 6) = Matrix3d::Identity();
+            F_model.block<3, 3>(6, 6) = Matrix3d::Identity(); // delta v wrt delta v
             //F.block<3, 3>(6, 9) = -0.5 * (delta_q.toRotationMatrix() + result_delta_q.toRotationMatrix()) * _dt;
             F_model.block<3, 3>(6, 9) = -0.5 * result_delta_q.toRotationMatrix() * R_F_1_x * _dt * -_dt;
-            //F.block<3, 3>(9, 9) = Matrix3d::Identity();
             F_model.block<3, 3>(9, 9) = Matrix3d::Identity();
 
 
@@ -156,15 +155,15 @@ class IntegrationBase
             Matrix3d delta_q_2rotmat = delta_q.toRotationMatrix();
             Matrix3d result_delta_q_2rotmat = result_delta_q.toRotationMatrix();
 
-            V_model.block<3, 1>(0, 0) =  0.25 * delta_q_2rotmat.rightCols<1>() * _dt * _dt;  //delta p  wrt Fz_0_noise 
+            V_model.block<3, 1>(0, 0) =  0.25 * delta_q_2rotmat.leftCols<1>() * _dt * _dt;  //delta p  wrt Fz_0_noise 
             V_model.block<3, 3>(0, 1) =  0.25 * -result_delta_q.toRotationMatrix() * R_F_1_x  * _dt * _dt * 0.5 * _dt; //delta p  wrt gyr_0_noise 
-            V_model.block<3, 1>(0, 4) =  0.25 * result_delta_q_2rotmat.rightCols<1>() * _dt * _dt;  //delta p  wrt Fz_1_noise 
+            V_model.block<3, 1>(0, 4) =  0.25 * result_delta_q_2rotmat.leftCols<1>() * _dt * _dt;  //delta p  wrt Fz_1_noise 
             V_model.block<3, 3>(0, 5) =  V_model.block<3, 3>(0, 1); //delta p  wrt gyr_1_noise 
             V_model.block<3, 3>(3, 1) =  0.5 * MatrixXd::Identity(3,3) * _dt; //delta r  wrt gyr_0_noise
             V_model.block<3, 3>(3, 5) =  0.5 * MatrixXd::Identity(3,3) * _dt; //delta r  wrt gyr_1_noise
-            V_model.block<3, 1>(6, 0) =  0.5 * delta_q_2rotmat.rightCols<1>() * _dt; //delta v  wrt fz0_noise
+            V_model.block<3, 1>(6, 0) =  0.5 * delta_q_2rotmat.leftCols<1>() * _dt; //delta v  wrt fz0_noise
             V_model.block<3, 3>(6, 1) =  0.5 * -result_delta_q.toRotationMatrix() * R_F_1_x  * _dt * 0.5 * _dt; //delta v  wrt gyr0_noise
-            V_model.block<3, 1>(6, 4) =  0.5 * result_delta_q_2rotmat.rightCols<1>() * _dt; //delta v  wrt fz1_noise
+            V_model.block<3, 1>(6, 4) =  0.5 * result_delta_q_2rotmat.leftCols<1>() * _dt; //delta v  wrt fz1_noise
             V_model.block<3, 3>(6, 5) =  V_model.block<3, 3>(6, 1); //delta v  wrt gyr1_noise
             //V.block<3, 3>(9, 12) = MatrixXd::Identity(3,3) * _dt;
             V_model.block<3, 3>(9, 8) = MatrixXd::Identity(3,3) * _dt; //delta bw wrt bw
@@ -257,7 +256,7 @@ class IntegrationBase
      
     }
 
-    Eigen::Matrix<double, 15, 1> evaluate(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi, const Eigen::Vector3d &Fexti, const Eigen::Vector3d &Bai, const Eigen::Vector3d &Bgi,
+    Eigen::Matrix<double, 15, 1> evaluate(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi, const Eigen::Vector3d &Bai, const Eigen::Vector3d &Bgi,
                                           const Eigen::Vector3d &Pj, const Eigen::Quaterniond &Qj, const Eigen::Vector3d &Vj, const Eigen::Vector3d &Baj, const Eigen::Vector3d &Bgj)
     {
         Eigen::Matrix<double, 15, 1> residuals;
@@ -277,9 +276,9 @@ class IntegrationBase
         Eigen::Vector3d corrected_delta_v = delta_v + dv_dba * dba + dv_dbg * dbg;
         Eigen::Vector3d corrected_delta_p = delta_p + dp_dba * dba + dp_dbg * dbg;
 
-        residuals.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * (2*G - Fexti / MASS) * sum_dt * sum_dt + 2*Pj - 2*Pi - 2*Vi * sum_dt) - corrected_delta_p - delta_p_model / MASS;
+        residuals.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * G * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - corrected_delta_p;
         residuals.block<3, 1>(O_R, 0) = 2 * (corrected_delta_q.inverse() * (Qi.inverse() * Qj)).vec();
-        residuals.block<3, 1>(O_V, 0) = Qi.inverse() * ((2*G - Fexti / MASS)* sum_dt + 2*Vj - 2*Vi) - corrected_delta_v - delta_v_model / MASS;
+        residuals.block<3, 1>(O_V, 0) = Qi.inverse() * (G * sum_dt + Vj - Vi) - corrected_delta_v;
         residuals.block<3, 1>(O_BA, 0) = Baj - Bai;
         residuals.block<3, 1>(O_BG, 0) = Bgj - Bgi;
 
@@ -293,17 +292,17 @@ class IntegrationBase
         return residuals;
     }
 
-    // Eigen::Matrix<double, 6, 1> evaluate_model(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi, const Eigen::Vector3d &Fexti,
-    //                                       const Eigen::Vector3d &Pj, const Eigen::Vector3d &Vj)
-    // {
-    //     Eigen::Matrix<double, 6, 1> residuals_model;
-    //     // we can also do attitude runge kutta integration here
+    Eigen::Matrix<double, 6, 1> evaluate_model(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi, const Eigen::Vector3d &Fexti,
+                                          const Eigen::Vector3d &Pj, const Eigen::Vector3d &Vj)
+    {
+        Eigen::Matrix<double, 6, 1> residuals_model;
+        // we can also do attitude runge kutta integration here
 
-    //     residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * (G - Fexti / MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - delta_p_model / MASS;
-    //     //residuals.block<3, 1>(O_R, 0) = 2 * (corrected_delta_q.inverse() * (Qi.inverse() * Qj)).vec();
-    //     residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * ((G - Fexti / MASS) * sum_dt + Vj - Vi) - delta_v_model / MASS;
-    //     return residuals_model;
-    // }
+        residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * (G - Fexti / MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - delta_p_model;
+        //residuals.block<3, 1>(O_R, 0) = 2 * (corrected_delta_q.inverse() * (Qi.inverse() * Qj)).vec();
+        residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * ((G - Fexti / MASS) * sum_dt + Vj - Vi) - delta_v_model;
+        return residuals_model;
+    }
 
     double dt;
     Eigen::Vector3d acc_0, gyr_0;

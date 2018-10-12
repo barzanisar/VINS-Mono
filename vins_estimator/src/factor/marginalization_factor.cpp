@@ -130,13 +130,13 @@ void MarginalizationInfo::preMarginalize()
 
 int MarginalizationInfo::localSize(int size) const
 {
-    return size == 7 ? 6 : size;
+    return size == 4 ? 3 : size;
 }
 
-int MarginalizationInfo::globalSize(int size) const
-{
-    return size == 6 ? 7 : size;
-}
+// int MarginalizationInfo::globalSize(int size) const
+// {
+//     return size == 6 ? 7 : size; // trouble
+// }
 
 void* ThreadsConstructA(void* threadsstruct)
 {
@@ -147,15 +147,15 @@ void* ThreadsConstructA(void* threadsstruct)
         {
             int idx_i = p->parameter_block_idx[reinterpret_cast<long>(it->parameter_blocks[i])];
             int size_i = p->parameter_block_size[reinterpret_cast<long>(it->parameter_blocks[i])];
-            if (size_i == 7)
-                size_i = 6;
+            if (size_i == 4)
+                size_i = 3;
             Eigen::MatrixXd jacobian_i = it->jacobians[i].leftCols(size_i);
             for (int j = i; j < static_cast<int>(it->parameter_blocks.size()); j++)
             {
                 int idx_j = p->parameter_block_idx[reinterpret_cast<long>(it->parameter_blocks[j])];
                 int size_j = p->parameter_block_size[reinterpret_cast<long>(it->parameter_blocks[j])];
-                if (size_j == 7)
-                    size_j = 6;
+                if (size_j == 4)
+                    size_j = 3;
                 Eigen::MatrixXd jacobian_j = it->jacobians[j].leftCols(size_j);
                 if (i == j)
                     p->A.block(idx_i, idx_j, size_i, size_j) += jacobian_i.transpose() * jacobian_j;
@@ -349,15 +349,15 @@ bool MarginalizationFactor::Evaluate(double const *const *parameters, double *re
         int idx = marginalization_info->keep_block_idx[i] - m;
         Eigen::VectorXd x = Eigen::Map<const Eigen::VectorXd>(parameters[i], size);
         Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginalization_info->keep_block_data[i], size);
-        if (size != 7)
+        if (size != 4) //trouble
             dx.segment(idx, size) = x - x0;
         else
         {
-            dx.segment<3>(idx + 0) = x.head<3>() - x0.head<3>();
-            dx.segment<3>(idx + 3) = 2.0 * Utility::positify(Eigen::Quaterniond(x0(6), x0(3), x0(4), x0(5)).inverse() * Eigen::Quaterniond(x(6), x(3), x(4), x(5))).vec();
-            if (!((Eigen::Quaterniond(x0(6), x0(3), x0(4), x0(5)).inverse() * Eigen::Quaterniond(x(6), x(3), x(4), x(5))).w() >= 0))
+            //dx.segment<3>(idx + 0) = x.head<3>() - x0.head<3>();
+            dx.segment<3>(idx) = 2.0 * Utility::positify(Eigen::Quaterniond(x0(3), x0(0), x0(1), x0(2)).inverse() * Eigen::Quaterniond(x(3), x(0), x(1), x(2))).vec();
+            if (!((Eigen::Quaterniond(x0(3), x0(0), x0(1), x0(2)).inverse() * Eigen::Quaterniond(x(3), x(0), x(1), x(2))).w() >= 0))
             {
-                dx.segment<3>(idx + 3) = 2.0 * -Utility::positify(Eigen::Quaterniond(x0(6), x0(3), x0(4), x0(5)).inverse() * Eigen::Quaterniond(x(6), x(3), x(4), x(5))).vec();
+                dx.segment<3>(idx) = 2.0 * -Utility::positify(Eigen::Quaterniond(x0(3), x0(0), x0(1), x0(2)).inverse() * Eigen::Quaterniond(x(3), x(0), x(1), x(2))).vec();
             }
         }
     }
