@@ -43,7 +43,7 @@ void registerPub(ros::NodeHandle &n)
 }
 
 void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, const std_msgs::Header &header)
-{
+{ //estimated pose and velocity from last frame in the window + integrated imu meas until we receive next frame
     Eigen::Quaterniond quadrotor_Q = Q ;
 
     nav_msgs::Odometry odometry;
@@ -66,7 +66,7 @@ void printStatistics(const Estimator &estimator, double t)
 {
     if (estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
         return;
-    printf("position: %f, %f, %f\r", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z());
+    //printf("position: %f, %f, %f\r", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z());
     ROS_DEBUG_STREAM("position: " << estimator.Ps[WINDOW_SIZE].transpose());
     ROS_DEBUG_STREAM("orientation: " << estimator.Vs[WINDOW_SIZE].transpose());
     for (int i = 0; i < NUM_OF_CAM; i++)
@@ -123,7 +123,7 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         odometry.twist.twist.linear.x = estimator.Vs[WINDOW_SIZE].x();
         odometry.twist.twist.linear.y = estimator.Vs[WINDOW_SIZE].y();
         odometry.twist.twist.linear.z = estimator.Vs[WINDOW_SIZE].z();
-        pub_odometry.publish(odometry);
+        pub_odometry.publish(odometry); //publish last estimated pose
 
         geometry_msgs::PoseStamped pose_stamped;
         pose_stamped.header = header;
@@ -132,10 +132,10 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         path.header = header;
         path.header.frame_id = "world";
         path.poses.push_back(pose_stamped);
-        pub_path.publish(path);
+        pub_path.publish(path); // publish updated path of estimated poses from the beginning 
 
         Vector3d correct_t;
-        Vector3d correct_v;
+        //Vector3d correct_v;
         Quaterniond correct_q;
         correct_t = estimator.drift_correct_r * estimator.Ps[WINDOW_SIZE] + estimator.drift_correct_t;
         correct_q = estimator.drift_correct_r * estimator.Rs[WINDOW_SIZE];
@@ -151,7 +151,7 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         relo_path.header = header;
         relo_path.header.frame_id = "world";
         relo_path.poses.push_back(pose_stamped);
-        pub_relo_path.publish(relo_path);
+        pub_relo_path.publish(relo_path); // publish loop closure corrected pose path 
 
         // write result to file
         ofstream foutC(VINS_RESULT_PATH, ios::app);
@@ -202,7 +202,7 @@ void pubKeyPoses(const Estimator &estimator, const std_msgs::Header &header)
         pose_marker.x = correct_pose.x();
         pose_marker.y = correct_pose.y();
         pose_marker.z = correct_pose.z();
-        key_poses.points.push_back(pose_marker);
+        key_poses.points.push_back(pose_marker); //publish estimated pose Ps[i]
     }
     pub_key_poses.publish(key_poses);
 }
@@ -228,7 +228,7 @@ void pubCameraPose(const Estimator &estimator, const std_msgs::Header &header)
         odometry.pose.pose.orientation.z = R.z();
         odometry.pose.pose.orientation.w = R.w();
 
-        pub_camera_pose.publish(odometry);
+        pub_camera_pose.publish(odometry); // publish pose of camera wrt world frame
 
         cameraposevisual.reset();
         cameraposevisual.add_pose(P, R);

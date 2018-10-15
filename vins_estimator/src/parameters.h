@@ -11,8 +11,9 @@
 const double FOCAL_LENGTH = 460.0;
 const int WINDOW_SIZE = 10;
 const int NUM_OF_CAM = 1;
-const int NUM_OF_F = 1000;
+const int NUM_OF_F = 1000; // number of landmarks in the whole window i.e. total number of features observed in 10 frames
 
+// TO DO: barza: make these all externs
 const double MASS = 1.56779;
 extern Eigen::Matrix3d INERTIA;
 const double PROPELLER_FORCE_N = 0.01; //prop force std
@@ -54,11 +55,9 @@ enum SIZE_PARAMETERIZATION
     SIZE_ATTITUDE = 4, //  4 quaternion
     SIZE_SPEED = 3, // 3v
     SIZE_BIAS = 6, // 3ba, 3bg
-    //SIZE_BIAS_ACC = 3,
-    //SIZE_BIAS_GYR = 3, //3bg
     //SIZE_SPEEDBIAS = 9,
     SIZE_FEATURE = 1, // 1/Zc for each landmark
-    SIZE_FORCES = 3,
+    SIZE_FORCES = 3
 
     //SIZE_POSE = 7 // for extrinsic pose
 
@@ -73,12 +72,12 @@ enum StateOrder
     O_BG = 12
 };
 
-enum NoiseOrder
-{
+/*enum NoiseOrder
+{   //these are not used
     O_AN = 0, // noise
     O_GN = 3,
     O_AW = 6, // bias random walk
     O_GW = 9,
-    O_UN = 10 // change this, index for noise in utot i.e. in body Fx
+    O_UN = 12 // change this, index for noise in utot i.e. in body Fx
 
-};
+};*/

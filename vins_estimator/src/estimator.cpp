@@ -148,7 +148,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     Headers[frame_count] = header;
 
     ImageFrame imageframe(image, header.stamp.toSec());
-    imageframe.pre_integration = tmp_pre_integration;
+    imageframe.pre_integration = tmp_pre_integration;// contains imu meas between previous image and this image
     all_image_frame.insert(make_pair(header.stamp.toSec(), imageframe));
     tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Fz_0, torque_0, Bas[frame_count], Bgs[frame_count]};
 
@@ -592,9 +592,9 @@ void Estimator::double2vector()
                           para_Bias[i][1],
                           para_Bias[i][2]);
 
-        Bgs[i] = Vector3d(para_Bias[i][0],
-                          para_Bias[i][1],
-                          para_Bias[i][2]);
+        Bgs[i] = Vector3d(para_Bias[i][3],
+                          para_Bias[i][4],
+                          para_Bias[i][5]);
 
         Fexts[i] = Vector3d(para_Fext[i][0],
                             para_Fext[i][1],
@@ -658,6 +658,11 @@ bool Estimator::failureDetection()
     if (Bgs[WINDOW_SIZE].norm() > 1.0)
     {
         ROS_INFO(" big IMU gyr bias estimation %f", Bgs[WINDOW_SIZE].norm());
+        return true;
+    }
+    if (Fexts[WINDOW_SIZE].norm() > 100)
+    {
+        ROS_INFO(" big Fext estimation %f", Fexts[WINDOW_SIZE].norm());
         return true;
     }
     /*
@@ -968,7 +973,7 @@ void Estimator::optimization()
             addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i - 1];
             addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i - 1];
             addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i - 1];
-            addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
+            //addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
         }
         for (int i = 0; i < NUM_OF_CAM; i++)
         {   
@@ -1003,7 +1008,7 @@ void Estimator::optimization()
                 {
                     ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Speed[WINDOW_SIZE - 1]);
                     ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Bias[WINDOW_SIZE - 1]);
-                    ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Fext[WINDOW_SIZE - 1]); //why need this?
+                    //ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Fext[WINDOW_SIZE - 1]); //why need this?
                     if (last_marginalization_parameter_blocks[i] == para_Position[WINDOW_SIZE - 1] ||
                         last_marginalization_parameter_blocks[i] == para_Attitude[WINDOW_SIZE - 1])
                         drop_set.push_back(i);
@@ -1038,7 +1043,7 @@ void Estimator::optimization()
                     addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i - 1];
                     addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i - 1];
                     addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i - 1];
-                    addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
+                    //addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
                 }
                 else
                 {
@@ -1046,7 +1051,7 @@ void Estimator::optimization()
                     addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i];
                     addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i];
                     addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i];
-                    addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
+                    //addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
                 }
             }
             for (int i = 0; i < NUM_OF_CAM; i++)
