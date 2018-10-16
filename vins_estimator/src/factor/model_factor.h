@@ -44,8 +44,12 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
         sqrt_info.block<3,3>(3,0) = sqrt_info_full.block<3,3>(O_V,O_P);
         sqrt_info.block<3,3>(3,3) = sqrt_info_full.block<3,3>(O_V,O_V);
 
-
+        ROS_DEBUG_STREAM_ONCE("Model residual before:" << residual);
+        ROS_DEBUG_STREAM_ONCE("Model covariance_model before:" << pre_integration->covariance_model);
+        ROS_DEBUG_STREAM_ONCE("Model sqrt_info after:" << sqrt_info);
         residual = sqrt_info * residual;
+
+        ROS_DEBUG_STREAM_ONCE("Model residual after:" << residual);
 
         if (jacobians)
         {
@@ -66,6 +70,7 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                     //std::cout << sqrt_info << std::endl;
                     //ROS_BREAK();
                 }
+                ROS_DEBUG_STREAM_ONCE("Model jacobian_position_i after:" << jacobian_position_i);
             }
             if (jacobians[1]) // derivative of residual wrt parameter block i.e. 4D attitude_i
             {
@@ -84,6 +89,7 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                     //std::cout << sqrt_info << std::endl;
                     //ROS_BREAK();
                 }
+                ROS_DEBUG_STREAM_ONCE("Model jacobian_attitude_i after:" << jacobian_attitude_i);
             }
             if (jacobians[2])// derivative of residual wrt parameter block i.e. 3D speed i
             {
@@ -95,6 +101,7 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 jacobian_speed_i.block<3, 3>(O_V-3, O_V - O_V) = -Qi.inverse().toRotationMatrix();
 
                 jacobian_speed_i = sqrt_info * jacobian_speed_i;
+                ROS_DEBUG_STREAM_ONCE("Model jacobian_speed_i after:" << jacobian_speed_i);
 
                 //ROS_ASSERT(fabs(jacobian_speed_i.maxCoeff()) < 1e8);
                 //ROS_ASSERT(fabs(jacobian_speed_i.minCoeff()) < 1e8);
@@ -107,6 +114,7 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 jacobian_fext_i.block<3, 3>(O_P, 0) = - (0.5/MASS) * Qi.inverse().toRotationMatrix() * sum_dt * sum_dt;
                 jacobian_fext_i.block<3, 3>(O_V-3, 0) = - Qi.inverse().toRotationMatrix() * (sum_dt/MASS);
                 jacobian_fext_i = sqrt_info * jacobian_fext_i;
+                ROS_DEBUG_STREAM_ONCE("Model jacobian_fext_i after:" << jacobian_fext_i);
 
                 //ROS_ASSERT(fabs(jacobian_fext_i.maxCoeff()) < 1e8);
                 //ROS_ASSERT(fabs(jacobian_fext_i.minCoeff()) < 1e8);
@@ -119,6 +127,7 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 jacobian_position_j.block<3, 3>(O_P, O_P) = Qi.inverse().toRotationMatrix();
 
                 jacobian_position_j = sqrt_info * jacobian_position_j;
+                ROS_DEBUG_STREAM_ONCE("Model jacobian_position_j after:" << jacobian_position_j);
 
                 //ROS_ASSERT(fabs(jacobian_position_j.maxCoeff()) < 1e8);
                 //ROS_ASSERT(fabs(jacobian_position_j.minCoeff()) < 1e8);
@@ -131,6 +140,7 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 jacobian_speed_j.block<3, 3>(O_V-3, O_V - O_V) = Qi.inverse().toRotationMatrix();
 
                 jacobian_speed_j = sqrt_info * jacobian_speed_j;
+                ROS_DEBUG_STREAM_ONCE("Model jacobian_speed_j after:" << jacobian_speed_j);
 
                 //ROS_ASSERT(fabs(jacobian_speed_j.maxCoeff()) < 1e8);
                 //ROS_ASSERT(fabs(jacobian_speed_j.minCoeff()) < 1e8);

@@ -91,7 +91,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
     {
         ROS_DEBUG_STREAM(" frame_count: " << frame_count << " am_0 " << acc_0.transpose());
         ROS_DEBUG_STREAM(" Bas: " << Bas[frame_count].transpose());
-        pre_integrations[frame_count] = new IntegrationBase{acc_0, gyr_0, Fz_0, torque_0, Bas[frame_count], Bgs[frame_count]}; //,,0,0
+        pre_integrations[frame_count] = new IntegrationBase{acc_0, gyr_0, Fz_0, torque_0, Bas[frame_count], Bgs[frame_count]}; 
     }
     if (frame_count != 0)
     {
@@ -99,8 +99,11 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
             ROS_DEBUG_STREAM(" frame_count: " << frame_count << " am_1 " << linear_acceleration.transpose());
         }
         pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity, Fz, torque);
+
         //if(solver_flag != NON_LINEAR)
             tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity, Fz, torque);
+            
+
 
         dt_buf[frame_count].push_back(dt);
         linear_acceleration_buf[frame_count].push_back(linear_acceleration);
@@ -110,14 +113,14 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
 
         int j = frame_count;         // initial guess propagation // should we average it with control inputs???, If yes, then uncomment 2 lines below
         Vector3d un_acc_0 = Rs[j] * (acc_0 - Bas[j]) - g;
-        //Vector3d body_thrust_0(0.0, 0.0, Fz_0);
+        //Vector3d body_thrust_0(Fz_0, 0.0, 0.0);
         //Vector3d control_acc_0 = (Rs[j] * body_thrust_0 + Fexts[j])/MASS - g;
         ROS_DEBUG_STREAM_ONCE(" Gravity " << g.transpose());
         Vector3d control_acc_0 = (Rs[j].leftCols<1>() * Fz_0 + Fexts[j])/MASS - g;
         Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - Bgs[j];
         Rs[j] *= Utility::deltaQ(un_gyr * dt).toRotationMatrix();
         Vector3d un_acc_1 = Rs[j] * (linear_acceleration - Bas[j]) - g;
-        //Vector3d body_thrust_1(0.0, 0.0, Fz);
+        //Vector3d body_thrust_1(Fz, 0.0, 0.0);
         //Vector3d control_acc_1 = (Rs[j] * body_thrust_1 + Fexts[j])/MASS - g;
         Vector3d control_acc_1 = (Rs[j].leftCols<1>() * Fz + Fexts[j])/MASS - g;
         //un_acc_0 = 0.5 * (un_acc_0 + control_acc_0);
@@ -151,6 +154,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     imageframe.pre_integration = tmp_pre_integration;// contains imu meas between previous image and this image
     all_image_frame.insert(make_pair(header.stamp.toSec(), imageframe));
     tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Fz_0, torque_0, Bas[frame_count], Bgs[frame_count]};
+    
 
     if(ESTIMATE_EXTRINSIC == 2)
     {
@@ -711,7 +715,7 @@ void Estimator::optimization()
         problem.AddParameterBlock(para_Attitude[i], SIZE_ATTITUDE, local_parameterization);
         problem.AddParameterBlock(para_Speed[i], SIZE_SPEED);
         problem.AddParameterBlock(para_Bias[i], SIZE_BIAS);
-        //problem.AddParameterBlock(para_Fext[i], SIZE_FORCES);
+        problem.AddParameterBlock(para_Fext[i], SIZE_FORCES);
     }
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
@@ -752,9 +756,8 @@ void Estimator::optimization()
             continue;
         IMUFactor* imu_factor = new IMUFactor(pre_integrations[j]); // starts with preinteg[1] and para_pose 0,1 and ends adding preinteg[10]
         problem.AddResidualBlock(imu_factor, NULL, para_Position[i], para_Attitude[i], para_Speed[i], para_Bias[i], para_Position[j], para_Attitude[j], para_Speed[j], para_Bias[j]);
-    /*    ModelFactor* model_factor = new ModelFactor(pre_integrations[j]); // starts with preinteg[1] and para_pose 0,1 and ends adding preinteg[10]
-        problem.AddResidualBlock(model_factor, NULL, para_Position[i], para_Attitude[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]); //we want model_factor, NULL, para_Pose[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]
-*/    
+        ModelFactor* model_factor = new ModelFactor(pre_integrations[j]); // starts with preinteg[1] and para_pose 0,1 and ends adding preinteg[10]
+        problem.AddResidualBlock(model_factor, NULL, para_Position[i], para_Attitude[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]); //we want model_factor, NULL, para_Pose[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]   
     }
     int f_m_cnt = 0;
     int feature_index = -1;
@@ -880,8 +883,8 @@ void Estimator::optimization()
                 if (last_marginalization_parameter_blocks[i] == para_Position[0] ||
                     last_marginalization_parameter_blocks[i] == para_Attitude[0] ||
                     last_marginalization_parameter_blocks[i] == para_Speed[0] || 
-                    last_marginalization_parameter_blocks[i] == para_Bias[0] ) //||
-                    //last_marginalization_parameter_blocks[i] == para_Fext[0]) // or external force[0]
+                    last_marginalization_parameter_blocks[i] == para_Bias[0] ||
+                    last_marginalization_parameter_blocks[i] == para_Fext[0]) // or external force[0]
                     drop_set.push_back(i);
             }
             // construct new marginlization_factor
@@ -904,7 +907,7 @@ void Estimator::optimization()
             }
         }
 
-        /*{
+        {
             if (pre_integrations[1]->sum_dt < 10.0)
             {
                 ModelFactor* model_factor = new ModelFactor(pre_integrations[1]);
@@ -913,7 +916,7 @@ void Estimator::optimization()
                                                                            vector<int>{0, 1, 2, 3}); // index of parameter blocks to drop, i.e. drop para_Pose[0], para_SpeedBias[0], para_Fext[0]
                 marginalization_info->addResidualBlockInfo(residual_block_info);
             }
-        }*/
+        }
 
         {
             int feature_index = -1;
@@ -975,7 +978,7 @@ void Estimator::optimization()
             addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i - 1];
             addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i - 1];
             addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i - 1];
-            //addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
+            addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
         }
         for (int i = 0; i < NUM_OF_CAM; i++)
         {   
@@ -1010,7 +1013,7 @@ void Estimator::optimization()
                 {
                     ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Speed[WINDOW_SIZE - 1]);
                     ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Bias[WINDOW_SIZE - 1]);
-                    //ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Fext[WINDOW_SIZE - 1]); //why need this?
+                    ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Fext[WINDOW_SIZE - 1]); //why need this?
                     if (last_marginalization_parameter_blocks[i] == para_Position[WINDOW_SIZE - 1] ||
                         last_marginalization_parameter_blocks[i] == para_Attitude[WINDOW_SIZE - 1])
                         drop_set.push_back(i);
@@ -1045,7 +1048,7 @@ void Estimator::optimization()
                     addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i - 1];
                     addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i - 1];
                     addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i - 1];
-                    //addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
+                    addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
                 }
                 else
                 {
@@ -1053,7 +1056,7 @@ void Estimator::optimization()
                     addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i];
                     addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i];
                     addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i];
-                    //addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
+                    addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
                 }
             }
             for (int i = 0; i < NUM_OF_CAM; i++)
@@ -1117,6 +1120,7 @@ void Estimator::slideWindow()
 
             delete pre_integrations[WINDOW_SIZE];
             pre_integrations[WINDOW_SIZE] = new IntegrationBase{acc_0, gyr_0, Fz_0, torque_0, Bas[WINDOW_SIZE], Bgs[WINDOW_SIZE]};
+            
 
             dt_buf[WINDOW_SIZE].clear();
             linear_acceleration_buf[WINDOW_SIZE].clear();

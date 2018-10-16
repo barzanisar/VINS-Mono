@@ -148,7 +148,6 @@ getMeasurements0()
 }
 
 std::vector<std::pair<std::pair<std::vector<sensor_msgs::ImuConstPtr>,std::vector<mav_msgs::TorqueThrustPtr>>, sensor_msgs::PointCloudConstPtr>>
-//std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>>
 getMeasurements1()
 {
     //std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
@@ -686,7 +685,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vins_estimator");
     ros::NodeHandle n("~");
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug); //Debug
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info); //Debug
     readParameters(n);
     estimator.setParameter();
 #ifdef EIGEN_DONT_PARALLELIZE
@@ -696,14 +695,14 @@ int main(int argc, char **argv)
 
     registerPub(n);
 
-    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback0, ros::TransportHints().tcpNoDelay()); // 2000 msgs queue size
-    //ros::Subscriber sub_control_inputs = n.subscribe("/torque_thrust", 2000, control_inputs_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback1, ros::TransportHints().tcpNoDelay()); // 2000 msgs queue size
+    ros::Subscriber sub_control_inputs = n.subscribe("/torque_thrust", 2000, control_inputs_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
 
-    std::thread measurement_process{VIO_process};
-    //std::thread measurement_process{VIO_MODEL_process};
+    //std::thread measurement_process{VIO_process};
+    std::thread measurement_process{VIO_MODEL_process};
     ros::spin();
 
     return 0;
