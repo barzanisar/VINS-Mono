@@ -201,8 +201,8 @@ class IntegrationBase
             V.block<3, 3>(9, 12) = MatrixXd::Identity(3,3) * _dt;
             V.block<3, 3>(12, 15) = MatrixXd::Identity(3,3) * _dt;
 
-            //step_jacobian = F;
-            //step_V = V;
+            step_jacobian = F;
+            step_V = V;
             jacobian = F * jacobian;
             covariance = F * covariance * F.transpose() + V * noise * V.transpose();
             covariance_model = F_model * covariance_model * F_model.transpose() + V_model * noise_model * V_model.transpose();
@@ -282,6 +282,20 @@ class IntegrationBase
         residuals.block<3, 1>(O_BA, 0) = Baj - Bai;
         residuals.block<3, 1>(O_BG, 0) = Bgj - Bgi;
 
+        std::cout << "IMU residual before: Qi: " << Qi.w() << " "<< Qi.vec().transpose() << std::endl;
+        std::cout << "IMU residual before: Qj: " << Qj.w() << " "<< Qj.vec().transpose() << std::endl;
+        std::cout << "IMU residual before: sum_dt: " << sum_dt << std::endl;
+        std::cout << "IMU residual before: Pi: " << Pi.transpose() << std::endl;
+        std::cout << "IMU residual before: Pj: " << Pj.transpose() << std::endl;
+        std::cout << "IMU residual before: Vi: " << Vi.transpose() << std::endl;
+        std::cout << "IMU residual before: Vj: " << Vj.transpose() << std::endl;
+        std::cout << "IMU residual before: corrected delta_p: " << corrected_delta_p.transpose() << std::endl;
+        std::cout << "IMU residual before: corrected delta_v: " << corrected_delta_v.transpose() << std::endl;
+        std::cout << "IMU residual before: corrected_delta_q: " << corrected_delta_q.w()  << corrected_delta_q.vec().transpose() << std::endl;
+
+        std::cout << "IMU residual before: covariance: " << covariance << std::endl;
+        std::cout << "IMU residual before: step_jacobian F: " << step_jacobian << std::endl;
+        std::cout << "IMU residual before: step_ V: " << step_V << std::endl;
 
         // residuals.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * G * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - corrected_delta_p;
         // residuals.block<3, 1>(O_R, 0) = 2 * (corrected_delta_q.inverse() * (Qi.inverse() * Qj)).vec();

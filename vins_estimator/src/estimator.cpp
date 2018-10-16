@@ -496,6 +496,7 @@ void Estimator::solveOdometry()
         TicToc t_tri;
         f_manager.triangulate(Ps, tic, ric);
         ROS_DEBUG("triangulation costs %f", t_tri.toc());
+
         optimization();
     }
 }
@@ -738,6 +739,7 @@ void Estimator::optimization()
     if (last_marginalization_info) // if is not nullptr i.e. prior exists from previous optimization then add its prior residual
     {
         // construct new marginlization_factor
+        ROS_DEBUG_STREAM_ONCE("set marginalization factor!");
         MarginalizationFactor *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
         problem.AddResidualBlock(marginalization_factor, NULL,
                                  last_marginalization_parameter_blocks);
@@ -806,7 +808,7 @@ void Estimator::optimization()
 
     if(relocalization_info)
     {
-        //printf("set relocalization factor! \n");
+        ROS_DEBUG_STREAM_ONCE("set relocalization factor!");
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
         problem.AddParameterBlock(relo_Position, SIZE_POSITION);
         problem.AddParameterBlock(relo_Attitude, SIZE_ATTITUDE, local_parameterization);
