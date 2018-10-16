@@ -59,7 +59,7 @@ void readParameters(ros::NodeHandle &n)
 
     std::string OUTPUT_PATH;
     fsSettings["output_path"] >> OUTPUT_PATH;
-    VINS_RESULT_PATH = OUTPUT_PATH + "/vins_result_no_loop.csv";
+    VINS_RESULT_PATH = OUTPUT_PATH + "/vins_result_no_loop_model.csv";
     std::cout << "result path " << VINS_RESULT_PATH << std::endl;
     std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
     std::cout << "file is opened? " << !fout << " "<< fout.bad() << " "<< fout.fail()<< std::endl;
