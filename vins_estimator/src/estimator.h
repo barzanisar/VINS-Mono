@@ -70,7 +70,7 @@ class Estimator
     MatrixXd Ap[2], backup_A;
     VectorXd bp[2], backup_b;
 
-    Matrix3d ric[NUM_OF_CAM]; //NUM of cam is 1 bcz mono! Rot_imu_camera 
+    Matrix3d ric[NUM_OF_CAM]; //NUM of cam is 1 bcz mono! ric = Rot_imu_camera 
     Vector3d tic[NUM_OF_CAM];
 
     Vector3d Ps[(WINDOW_SIZE + 1)];
@@ -90,9 +90,9 @@ class Estimator
     double Fz_0; 
 
 
-    vector<double> dt_buf[(WINDOW_SIZE + 1)]; // Delta t between 2 frames in the window?
-    vector<Vector3d> linear_acceleration_buf[(WINDOW_SIZE + 1)]; // acc at frames
-    vector<Vector3d> angular_velocity_buf[(WINDOW_SIZE + 1)]; // ang vel at frames
+    vector<double> dt_buf[(WINDOW_SIZE + 1)]; // Delta t between 2 frames in the window
+    vector<Vector3d> linear_acceleration_buf[(WINDOW_SIZE + 1)]; // acc meas at frames
+    vector<Vector3d> angular_velocity_buf[(WINDOW_SIZE + 1)]; // ang vel meas at frames
     vector<double> Fz_buf[(WINDOW_SIZE + 1)];
     vector<Vector3d> torque_buf[(WINDOW_SIZE + 1)];
 
@@ -121,9 +121,8 @@ class Estimator
     double para_Feature[NUM_OF_F][SIZE_FEATURE];
     double para_Ex_Position[NUM_OF_CAM][SIZE_POSITION];
     double para_Ex_Attitude[NUM_OF_CAM][SIZE_ATTITUDE];
-    //double para_Retrive_Pose[SIZE_POSE];
     double para_Td[1][1];
-    //double para_Tr[1][1];
+    
 
     int loop_window_index;
 
@@ -139,7 +138,6 @@ class Estimator
     double relo_frame_index;
     int relo_frame_local_index;
     vector<Vector3d> match_points;
-    //double relo_Pose[SIZE_POSE];
     double relo_Position[SIZE_POSITION];
     double relo_Attitude[SIZE_ATTITUDE];
     Matrix3d drift_correct_r;

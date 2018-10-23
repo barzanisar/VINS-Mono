@@ -9,14 +9,13 @@
 #include <fstream>
 
 const double FOCAL_LENGTH = 460.0;
-const int WINDOW_SIZE = 10; //10
+const int WINDOW_SIZE = 10; 
 const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000; // number of landmarks in the whole window i.e. total number of features observed in 10 frames
 
-// TO DO: barza: make these all externs
 extern double MASS;
 extern Eigen::Matrix3d INERTIA;
-extern double PROPELLER_FORCE_N; //prop force std
+extern double PROPELLER_FORCE_N; //standard deviation for the control inputs acceleration 
 extern int APPLY_MODEL_PREINTEGRATION;
 
 
@@ -53,31 +52,17 @@ enum SIZE_PARAMETERIZATION
 {
     SIZE_POSITION = 3, // 3 translation 
     SIZE_ATTITUDE = 4, //  4 quaternion
-    SIZE_SPEED = 3, // 3v
-    SIZE_BIAS = 6, // 3ba, 3bg
-    //SIZE_SPEEDBIAS = 9,
+    SIZE_SPEED = 3, // 3 v
+    SIZE_BIAS = 6, // 3 ba, 3 bg
     SIZE_FEATURE = 1, // 1/Zc for each landmark
     SIZE_FORCES = 3
-
-    //SIZE_POSE = 7 // for extrinsic pose
-
 };
 
-enum StateOrder
+enum StateOrder 
 {
     O_P = 0,
-    O_R = 3, // 3,4,5 for rotation? so here we mean minimal state
+    O_R = 3, // 3,4,5 for rotation, so here we mean minimal state
     O_V = 6,
     O_BA = 9,
     O_BG = 12
 };
-
-/*enum NoiseOrder
-{   //these are not used
-    O_AN = 0, // noise
-    O_GN = 3,
-    O_AW = 6, // bias random walk
-    O_GW = 9,
-    O_UN = 12 // change this, index for noise in utot i.e. in body Fx
-
-};*/
