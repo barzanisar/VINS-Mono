@@ -9,6 +9,61 @@
 
 #include <ceres/ceres.h>
 
+/*struct ModelFactor
+{
+    ModelFactor(const IntegrationBase* _pre_integration):pre_integration(_pre_integration){}
+
+    //template <typename T>
+    bool operator()(const double* parameters0, const double* parameters1, const double* parameters2, const double* parameters3,
+    const double* parameters4, const double* parameters5, double* residuals) const
+    {
+        Eigen::Vector3d Pi(parameters0[0], parameters0[1], parameters0[2]);
+        Eigen::Quaterniond Qi(parameters1[3], parameters1[0], parameters1[1], parameters1[2]);
+
+        Eigen::Vector3d Vi(parameters2[0], parameters2[1], parameters2[2]);
+
+        Eigen::Vector3d Fexti(parameters3[0], parameters3[1], parameters3[2]);
+
+        Eigen::Vector3d Pj(parameters4[0], parameters4[1], parameters4[2]);
+
+        Eigen::Vector3d Vj(parameters5[0], parameters5[1], parameters5[2]);
+
+        Eigen::Map<Eigen::Matrix<double, 6, 1>> residual(residuals);
+        residual = pre_integration->evaluate_model(Pi, Qi, Vi, Fexti,
+                                            Pj, Vj);
+
+
+        Eigen::Matrix<double, 12, 12> sqrt_info_full = Eigen::LLT<Eigen::Matrix<double, 12, 12>>(pre_integration->covariance_model.inverse()).matrixL().transpose();
+        //sqrt_info.setIdentity();
+        Eigen::Matrix<double, 6, 6> sqrt_info; // for just p and v
+        sqrt_info.block<3,3>(0,0) = sqrt_info_full.block<3,3>(O_P,O_P);
+        sqrt_info.block<3,3>(0,3) = sqrt_info_full.block<3,3>(O_P,O_V);
+        sqrt_info.block<3,3>(3,0) = sqrt_info_full.block<3,3>(O_V,O_P);
+        sqrt_info.block<3,3>(3,3) = sqrt_info_full.block<3,3>(O_V,O_V);
+        
+        //sqrt_info = 0.0001*sqrt_info;
+
+        ROS_DEBUG_STREAM_ONCE("Model residual before:" << residual);
+        ROS_DEBUG_STREAM_ONCE("Model covariance_model before:" << pre_integration->covariance_model);
+        ROS_DEBUG_STREAM_ONCE("Model sqrt_info after:" << sqrt_info);
+        residual = sqrt_info * residual;
+
+        ROS_DEBUG_STREAM_ONCE("Model residual after:" << residual);
+
+        return true;
+    }
+
+    static ceres::CostFunction* Create(const IntegrationBase* pre_integration) 
+    {
+      return (new ceres::NumericDiffCostFunction<ModelFactor, ceres::CENTRAL, 6, 3, 4, 3, 3, 3, 3>(new ModelFactor(pre_integration)));
+    }
+
+    const IntegrationBase* pre_integration;
+
+};*/
+
+
+
 class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //position i, attitude i,  speed i, fext i, position j, speed j, 
 {
   public:
@@ -34,6 +89,7 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
         Eigen::Map<Eigen::Matrix<double, 6, 1>> residual(residuals);
         residual = pre_integration->evaluate_model(Pi, Qi, Vi, Fexti,
                                             Pj, Vj);
+        Eigen::Matrix<double, 6, 1> residual_before = residual;
 
 
         Eigen::Matrix<double, 12, 12> sqrt_info_full = Eigen::LLT<Eigen::Matrix<double, 12, 12>>(pre_integration->covariance_model.inverse()).matrixL().transpose();
@@ -43,6 +99,8 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
         sqrt_info.block<3,3>(0,3) = sqrt_info_full.block<3,3>(O_P,O_V);
         sqrt_info.block<3,3>(3,0) = sqrt_info_full.block<3,3>(O_V,O_P);
         sqrt_info.block<3,3>(3,3) = sqrt_info_full.block<3,3>(O_V,O_V);
+        
+        //sqrt_info = 0.0001*sqrt_info;
 
         ROS_DEBUG_STREAM_ONCE("Model residual before:" << residual);
         ROS_DEBUG_STREAM_ONCE("Model covariance_model before:" << pre_integration->covariance_model);
@@ -61,12 +119,14 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 jacobian_position_i.setZero();
 
                 jacobian_position_i.block<3, 3>(O_P, O_P) = -Qi.inverse().toRotationMatrix();
+                //jacobian_position_i.block<3, 3>(O_P, O_P) = -MASS * Qi.inverse().toRotationMatrix();
+
 
                 jacobian_position_i = sqrt_info * jacobian_position_i;
 
                 if (jacobian_position_i.maxCoeff() > 1e8 || jacobian_position_i.minCoeff() < -1e8)
                 {
-                    ROS_WARN("numerical unstable in preintegration");
+                    ROS_WARN("numerical unstable in jacobian of model residual wrt position_i");
                     //std::cout << sqrt_info << std::endl;
                     //ROS_BREAK();
                 }
@@ -80,15 +140,19 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 jacobian_attitude_i.block<3, 3>(O_P, O_R-O_R) = Utility::skewSymmetric(Qi.inverse() * (0.5 * (G - Fexti/MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt));
 
                 jacobian_attitude_i.block<3, 3>(O_V-3, O_R-O_R) = Utility::skewSymmetric(Qi.inverse() * ((G - Fexti/MASS) * sum_dt + Vj - Vi));
+              
+                //jacobian_attitude_i.block<3, 3>(O_P, O_R-O_R) = Utility::skewSymmetric(MASS *Qi.inverse() * (0.5 * (G - Fexti/MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt));
 
+                //jacobian_attitude_i.block<3, 3>(O_V-3, O_R-O_R) = Utility::skewSymmetric(MASS *Qi.inverse() * ((G - Fexti/MASS) * sum_dt + Vj - Vi));             
                 jacobian_attitude_i = sqrt_info * jacobian_attitude_i;
 
                 if (jacobian_attitude_i.maxCoeff() > 1e8 || jacobian_attitude_i.minCoeff() < -1e8)
                 {
-                    ROS_WARN("numerical unstable in preintegration");
+                    ROS_WARN("numerical unstable in jacobian of model residual wrt attitude_i");
                     //std::cout << sqrt_info << std::endl;
                     //ROS_BREAK();
                 }
+                ROS_DEBUG_STREAM_THROTTLE(0.2, "Fexti: "<< Fexti.transpose());
                 ROS_DEBUG_STREAM_ONCE("Model jacobian_attitude_i after:" << jacobian_attitude_i);
             }
             if (jacobians[2])// derivative of residual wrt parameter block i.e. 3D speed i
@@ -99,6 +163,10 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 jacobian_speed_i.block<3, 3>(O_P, O_V - O_V) = -Qi.inverse().toRotationMatrix() * sum_dt;
 
                 jacobian_speed_i.block<3, 3>(O_V-3, O_V - O_V) = -Qi.inverse().toRotationMatrix();
+
+                //jacobian_speed_i.block<3, 3>(O_P, O_V - O_V) = -MASS * Qi.inverse().toRotationMatrix() * sum_dt;
+
+                //jacobian_speed_i.block<3, 3>(O_V-3, O_V - O_V) = -MASS * Qi.inverse().toRotationMatrix();
 
                 jacobian_speed_i = sqrt_info * jacobian_speed_i;
                 ROS_DEBUG_STREAM_ONCE("Model jacobian_speed_i after:" << jacobian_speed_i);
@@ -113,9 +181,30 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
 
                 jacobian_fext_i.block<3, 3>(O_P, 0) = - (0.5/MASS) * Qi.inverse().toRotationMatrix() * sum_dt * sum_dt;
                 jacobian_fext_i.block<3, 3>(O_V-3, 0) = - Qi.inverse().toRotationMatrix() * (sum_dt/MASS);
+                //jacobian_fext_i.block<3, 3>(O_P, 0) = - 0.5 * Qi.inverse().toRotationMatrix() * sum_dt * sum_dt;
+                //jacobian_fext_i.block<3, 3>(O_V-3, 0) = - Qi.inverse().toRotationMatrix() * sum_dt;
+                Eigen::Matrix<double, 6, 3, Eigen::RowMajor> jacobian_fext_i_before = jacobian_fext_i;
                 jacobian_fext_i = sqrt_info * jacobian_fext_i;
                 ROS_DEBUG_STREAM_ONCE("Model jacobian_fext_i after:" << jacobian_fext_i);
 
+                Eigen::Vector3d delta_fext_i=(jacobian_fext_i.transpose()*jacobian_fext_i).inverse() * jacobian_fext_i.transpose()*residual;
+
+                if (jacobian_fext_i.maxCoeff() > 1e8 || jacobian_fext_i.minCoeff() < -1e8)
+                {
+                    ROS_WARN("numerical unstable in jacobian of model residual wrt fext_i");
+                    //std::cout << sqrt_info << std::endl;
+                    //ROS_BREAK();
+                }
+                ROS_DEBUG_STREAM_ONCE("!!! big delta_fext_i: " << delta_fext_i.transpose());
+                
+                if (delta_fext_i.norm() > 3)
+                {
+                    ROS_DEBUG_STREAM("!!! big delta_fext_i: " << delta_fext_i.transpose());
+                    ROS_DEBUG_STREAM("!!! big jacobian_fext_i_before: " << jacobian_fext_i_before);
+                    ROS_DEBUG_STREAM("!!! big residual_before: " << residual_before);
+
+                }
+                //ROS_DEBUG_STREAM_THROTTLE(0.2, "delta_fext_i: "<<delta_fext_i.transpose());
                 //ROS_ASSERT(fabs(jacobian_fext_i.maxCoeff()) < 1e8);
                 //ROS_ASSERT(fabs(jacobian_fext_i.minCoeff()) < 1e8);
             }
@@ -125,6 +214,7 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 jacobian_position_j.setZero();
 
                 jacobian_position_j.block<3, 3>(O_P, O_P) = Qi.inverse().toRotationMatrix();
+                //jacobian_position_j.block<3, 3>(O_P, O_P) = MASS*Qi.inverse().toRotationMatrix();
 
                 jacobian_position_j = sqrt_info * jacobian_position_j;
                 ROS_DEBUG_STREAM_ONCE("Model jacobian_position_j after:" << jacobian_position_j);
@@ -138,6 +228,7 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 jacobian_speed_j.setZero();
 
                 jacobian_speed_j.block<3, 3>(O_V-3, O_V - O_V) = Qi.inverse().toRotationMatrix();
+                //jacobian_speed_j.block<3, 3>(O_V-3, O_V - O_V) = MASS*Qi.inverse().toRotationMatrix();
 
                 jacobian_speed_j = sqrt_info * jacobian_speed_j;
                 ROS_DEBUG_STREAM_ONCE("Model jacobian_speed_j after:" << jacobian_speed_j);

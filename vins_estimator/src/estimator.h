@@ -47,7 +47,7 @@ class Estimator
     void slideWindowNew();
     void slideWindowOld();
     void optimization();
-    void vector2double();
+    void vector2double(bool print_debug);
     void double2vector();
     bool failureDetection();
 

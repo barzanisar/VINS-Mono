@@ -84,6 +84,8 @@ class IntegrationBase
         Vector3d un_gyr = 0.5 * (_gyr_0 + _gyr_1) - linearized_bg;
         Vector3d body_thrust_0 (_Fz_0 / MASS, 0.0, 0.0); // body x axis is pointing upwards against gravity. This is now acc due to body thrust. 
         Vector3d body_thrust_1 (_Fz_1 / MASS, 0.0, 0.0);
+        //Vector3d body_thrust_0 (_Fz_0 , 0.0, 0.0); // body x axis is pointing upwards against gravity. 
+        //Vector3d body_thrust_1 (_Fz_1 , 0.0, 0.0);
         Vector3d control_acc_0 = delta_q * body_thrust_0; // delta_q.toRotationMatrix() * body_thrust_0;
 
         result_delta_q = delta_q * Quaterniond(1, un_gyr(0) * _dt / 2, un_gyr(1) * _dt / 2, un_gyr(2) * _dt / 2);
@@ -292,14 +294,32 @@ class IntegrationBase
     }
 
     Eigen::Matrix<double, 6, 1> evaluate_model(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi, const Eigen::Vector3d &Fexti,
-                                          const Eigen::Vector3d &Pj, const Eigen::Vector3d &Vj)
+                                          const Eigen::Vector3d &Pj, const Eigen::Vector3d &Vj) const
     {
         Eigen::Matrix<double, 6, 1> residuals_model;
         // we can also do attitude runge kutta integration here
 
-        residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * (G - Fexti / MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - delta_p_model;
+       /* residuals_model.block<3, 1>(O_P, 0) = MASS * Qi.inverse() * (0.5 * (G - Fexti / MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - delta_p_model;
+        residuals_model.block<3, 1>(O_V-3, 0) = MASS * Qi.inverse() * ((G - Fexti / MASS) * sum_dt + Vj - Vi) - delta_v_model;*/
+         residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * (G - Fexti / MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - delta_p_model;
         //residuals.block<3, 1>(O_R, 0) = 2 * (corrected_delta_q.inverse() * (Qi.inverse() * Qj)).vec();
         residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * ((G - Fexti / MASS) * sum_dt + Vj - Vi) - delta_v_model;
+
+        Eigen::Matrix<double, 3, 1> tmp_v_model_delta = Qi.inverse() * ((G - Fexti / MASS) * sum_dt + Vj - Vi);
+
+        std::cout << "model residual before: Qi: " << Qi.w() << " "<< Qi.vec().transpose() << std::endl;
+        std::cout << "model residual before: sum_dt: " << sum_dt << std::endl;
+        std::cout << "model residual before: G: " << G.transpose() << std::endl;
+        std::cout << "model residual before: Vi: " << Vi.transpose() << std::endl;
+        std::cout << "model residual before: Vj: " << Vj.transpose() << std::endl;
+        std::cout << "model residual before: model delta_v: " << delta_v_model.transpose() << std::endl;
+        std::cout << "model residual before: tmp_v_model_delta: " << tmp_v_model_delta.transpose() << std::endl;
+
+        std::cout << "model residual before: Pi: " << Pi.transpose() << std::endl;
+        std::cout << "model residual before: Pj: " << Pj.transpose() << std::endl;
+        std::cout << "model residual before: model delta_p: " << delta_p_model.transpose() << std::endl;
+
+
         return residuals_model;
     }
 

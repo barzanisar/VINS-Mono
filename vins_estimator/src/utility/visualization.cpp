@@ -19,6 +19,7 @@ CameraPoseVisualization cameraposevisual(0, 1, 0, 1);
 CameraPoseVisualization keyframebasevisual(0.0, 0.0, 1.0, 1.0);
 static double sum_of_path = 0;
 static Vector3d last_path(0.0, 0.0, 0.0);
+static bool start_recording = true;
 
 void registerPub(ros::NodeHandle &n)
 {
@@ -60,6 +61,20 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     odometry.twist.twist.linear.y = V.y();
     odometry.twist.twist.linear.z = V.z();
     pub_latest_odometry.publish(odometry);
+
+/*    ofstream foutC("/home/barza/barza-vins-out/model_no_loop_latest.txt", ios::app);
+        foutC.setf(ios::fixed, ios::floatfield);
+        foutC.precision(12);
+        foutC << header.stamp.toSec() << " ";
+        foutC.precision(5);
+        foutC << P.x() << " "
+              << P.y() << " "
+              << P.z() << " "
+              << quadrotor_Q.x() << " "
+              << quadrotor_Q.y() << " "
+              << quadrotor_Q.z() << " "
+              << quadrotor_Q.w() << endl;
+        foutC.close();*/
 }
 
 void printStatistics(const Estimator &estimator, double t)
@@ -159,26 +174,50 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         foutC.precision(0);
         foutC << header.stamp.toSec() * 1e9 << ",";
         foutC.precision(5);
-        foutC << estimator.Ps[WINDOW_SIZE].x() << ","
+        foutC << estimator.Ps[WINDOW_SIZE].x() << "," //2
               << estimator.Ps[WINDOW_SIZE].y() << ","
               << estimator.Ps[WINDOW_SIZE].z() << ","
-              << tmp_Q.w() << ","
+              << tmp_Q.w() << "," //5
               << tmp_Q.x() << ","
               << tmp_Q.y() << ","
               << tmp_Q.z() << ","
-              << estimator.Vs[WINDOW_SIZE].x() << ","
+              << estimator.Vs[WINDOW_SIZE].x() << "," //9
               << estimator.Vs[WINDOW_SIZE].y() << ","
               << estimator.Vs[WINDOW_SIZE].z() << "," 
-              << estimator.Bas[WINDOW_SIZE].x() << ","
+              << estimator.Bas[WINDOW_SIZE].x() << "," //12
               << estimator.Bas[WINDOW_SIZE].y() << ","
               << estimator.Bas[WINDOW_SIZE].z() << "," 
-              << estimator.Bgs[WINDOW_SIZE].x() << ","
+              << estimator.Bgs[WINDOW_SIZE].x() << "," //15
               << estimator.Bgs[WINDOW_SIZE].y() << ","
               << estimator.Bgs[WINDOW_SIZE].z() << "," 
-              << estimator.Fexts[WINDOW_SIZE].x() << ","
+              << estimator.Fexts[WINDOW_SIZE].x() << "," //18
               << estimator.Fexts[WINDOW_SIZE].y() << ","
               << estimator.Fexts[WINDOW_SIZE].z() << endl;
         foutC.close();
+
+        //ofstream foutA("/home/barza/barza-vins-out/model_loop_estimated.txt", ios::app);
+        if (start_recording)
+        {
+            std::remove ("/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop/model_vio_mono/laptop_model_vio_mono_MH_01/stamped_traj_estimate.txt");
+        }
+        ofstream foutA("/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop/model_vio_mono/laptop_model_vio_mono_MH_01/stamped_traj_estimate.txt", ios::app);
+        foutA.setf(ios::fixed, ios::floatfield);
+        if (start_recording)
+        {
+            foutA << "# time x y z qx qy qz qw" << endl;
+            start_recording = false;
+        }
+        foutA.precision(12);
+        foutA << header.stamp.toSec() << " ";
+        foutA.precision(5);
+        foutA << estimator.Ps[WINDOW_SIZE].x() << " "
+              << estimator.Ps[WINDOW_SIZE].y() << " "
+              << estimator.Ps[WINDOW_SIZE].z() << " "
+              << tmp_Q.x() << " "
+              << tmp_Q.y() << " "
+              << tmp_Q.z() << " "
+              << tmp_Q.w() << endl;
+        foutA.close();
     }
 }
 

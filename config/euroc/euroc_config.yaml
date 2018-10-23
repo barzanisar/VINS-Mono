@@ -51,8 +51,8 @@ equalize: 1             # if image is too dark or light, trun on equalize to fin
 fisheye: 0              # if using fisheye, trun on it. A circle mask will be loaded to remove edge noisy points
 
 #optimization parameters
-max_solver_time: 0.04  # max solver itration time (ms), to guarantee real time
-max_num_iterations: 8   # max solver itrations, to guarantee real time
+max_solver_time: 0.04 #0.04  # max solver itration time (ms), to guarantee real time
+max_num_iterations: 8 #8   # max solver itrations, to guarantee real time
 keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
 
 #imu parameters       The more accurate parameters you provide, the better performance
@@ -61,6 +61,11 @@ gyr_n:  0.004         # gyroscope measurement noise standard deviation.     #0.0
 acc_w: 0.00004         # accelerometer bias random work noise standard deviation.  #0.02  0.003 #
 gyr_w: 2.0e-6       # gyroscope bias random work noise standard deviation.     #4.0e-5  1.9393e-05 # 
 g_norm: 9.81007     # gravity magnitude
+
+#model parameters       The more accurate parameters you provide, the better performance
+control_thrust_n:  0.001            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
+apply_model_preintegration:  1      # set to 1 to apply model preinteg
+mass: 1.56779                       # mass of asctec firefly
 
 #loop closure parameters
 loop_closure: 1                    # start loop closure

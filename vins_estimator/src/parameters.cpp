@@ -1,9 +1,13 @@
 #include "parameters.h"
 
+double PROPELLER_FORCE_N;
+int APPLY_MODEL_PREINTEGRATION;
+double MASS;
+
 double INIT_DEPTH;
 double MIN_PARALLAX;
 double ACC_N, ACC_W;
-double GYR_N, GYR_W;
+double GYR_N, GYR_W; 
 
 std::vector<Eigen::Matrix3d> RIC;
 std::vector<Eigen::Vector3d> TIC;
@@ -64,6 +68,15 @@ void readParameters(ros::NodeHandle &n)
     std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
     std::cout << "file is opened? " << !fout << " "<< fout.bad() << " "<< fout.fail()<< std::endl;
     fout.close();
+
+    PROPELLER_FORCE_N = fsSettings["control_thrust_n"];
+    APPLY_MODEL_PREINTEGRATION = fsSettings["apply_model_preintegration"];
+    MASS = fsSettings["mass"];
+    ROS_INFO("PROPELLER_FORCE_N: %f MASS: %f ", PROPELLER_FORCE_N, MASS);
+    if (APPLY_MODEL_PREINTEGRATION == 1)
+    {
+        ROS_INFO("APPLY_MODEL_PREINTEGRATION !!!");
+    }
 
     ACC_N = fsSettings["acc_n"];
     ACC_W = fsSettings["acc_w"];

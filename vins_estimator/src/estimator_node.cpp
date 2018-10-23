@@ -363,7 +363,7 @@ void relocalization_callback(const sensor_msgs::PointCloudConstPtr &points_msg)
     m_buf.unlock();
 }
 
-// thread: visual-inertial odometry
+/*// thread: visual-inertial odometry
 void VIO_process()
 {
     while (true)
@@ -521,7 +521,7 @@ void VIO_process()
         m_state.unlock();
         m_buf.unlock();
     }
-}
+}*/
 
 // thread: visual-inertial odometry
 void VIO_MODEL_process()
@@ -573,6 +573,8 @@ void VIO_MODEL_process()
                     rz = (*imu_it)->angular_velocity.z;
 
                     Fz = (*control_it)->thrust.z;
+                    //if (t < 1403636608.838556 && t > 1403636607.838556) //  1403636609.843556
+                    //    Fz = 13; //10 or 13 cz actual is 14.8
                     Tx = (*control_it)->torque.x;
                     Ty = (*control_it)->torque.y;
                     Tz = (*control_it)->torque.z;
@@ -598,6 +600,8 @@ void VIO_MODEL_process()
                     rz = w1 * rz + w2 * (*imu_it)->angular_velocity.z;
 
                     Fz = w1 * Fz + w2 * (*control_it)->thrust.z;
+                    //if (t < 1403636608.838556 && t > 1403636607.838556)
+                    //    Fz = 13;
                     Tx = w1 * Tx + w2 * (*control_it)->torque.x;
                     Ty = w1 * Ty + w2 * (*control_it)->torque.y;
                     Tz = w1 * Tz + w2 * (*control_it)->torque.z;
@@ -685,7 +689,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vins_estimator");
     ros::NodeHandle n("~");
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info); //Debug
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info); //Debug Info
     readParameters(n);
     estimator.setParameter();
 #ifdef EIGEN_DONT_PARALLELIZE

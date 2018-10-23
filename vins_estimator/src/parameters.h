@@ -9,15 +9,15 @@
 #include <fstream>
 
 const double FOCAL_LENGTH = 460.0;
-const int WINDOW_SIZE = 10;
+const int WINDOW_SIZE = 10; //10
 const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000; // number of landmarks in the whole window i.e. total number of features observed in 10 frames
 
 // TO DO: barza: make these all externs
-const double MASS = 1.56779;
+extern double MASS;
 extern Eigen::Matrix3d INERTIA;
-const double PROPELLER_FORCE_N = 0.01; //prop force std
-const bool APPLY_MODEL_PREINTEGRATION = 1;
+extern double PROPELLER_FORCE_N; //prop force std
+extern int APPLY_MODEL_PREINTEGRATION;
 
 
 //#define UNIT_SPHERE_ERROR

@@ -56,12 +56,12 @@ int main(int argc, char** argv) {
           "torque_thrust", 200);
 
   rosbag::Bag bag;
-  bag.open("/home/barza/mav0/state_groundtruth_estimate0/test1.bag", rosbag::bagmode::Write);
+  bag.open("/home/barza/mav0/state_groundtruth_estimate0/force_leica_smooth.bag", rosbag::bagmode::Write);
 
   uint64_t imu_timestamp_ns;
   float Tx,Ty,Tz,Fz;
 
-  ifstream infile("/home/barza/mav0/state_groundtruth_estimate0/t_imu_M_F_corrected.csv"); // for example
+  ifstream infile("/home/barza/mav0/state_groundtruth_estimate0/t_imu_M_F_body_lieca_smooth.csv"); // for example
   
   string line = "";
 
