@@ -63,11 +63,16 @@ acc_w: 0.006 #0.00004         # accelerometer bias random work noise standard de
 gyr_w: 0.000038785 #       # gyroscope bias random work noise standard deviation.     #4.0e-5  1.9393e-05 # 
 g_norm: 9.81007     # gravity magnitude
 
+#model parameters       The more accurate parameters you provide, the better performance
+control_thrust_n:  0.001            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
+apply_model_preintegration:  1      # set to 1 to apply model preinteg
+mass: 1.56779                       # mass of asctec firefly
+
 #loop closure parameters
 loop_closure: 0                    # start loop closure
 load_previous_pose_graph: 0        # load and reuse previous pose graph; load from 'pose_graph_save_path'
 fast_relocalization: 0             # useful in real-time and large project
-pose_graph_save_path: "/home/tony-ws1/output/pose_graph/" # save and load path
+pose_graph_save_path: "/home/barza/barza-vins-out/output/pose_graph/" # save and load path
 
 #unsynchronization parameters
 estimate_td: 0                      # online estimate time offset between camera and imu

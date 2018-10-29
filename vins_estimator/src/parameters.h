@@ -15,7 +15,7 @@ const int NUM_OF_F = 1000; // number of landmarks in the whole window i.e. total
 
 // TO DO: barza: make these all externs
 extern double MASS;
-extern Eigen::Matrix3d INERTIA;
+extern Eigen::Matrix3d INERTIA; //not used at the moment
 extern double PROPELLER_FORCE_N; //prop force std
 extern int APPLY_MODEL_PREINTEGRATION;
 
@@ -40,6 +40,7 @@ extern int NUM_ITERATIONS;
 extern std::string EX_CALIB_RESULT_PATH;
 extern std::string VINS_RESULT_PATH;
 extern std::string IMU_TOPIC;
+extern std::string CONTROL_TOPIC;
 extern double TD;
 extern double TR;
 extern int ESTIMATE_TD;

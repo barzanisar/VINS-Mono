@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
     geometry_msgs
     nav_msgs
     mav_msgs
+    quadrotor_msgs
     tf
     cv_bridge
     )
