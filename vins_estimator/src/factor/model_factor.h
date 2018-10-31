@@ -119,14 +119,12 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 jacobian_position_i.setZero();
 
                 jacobian_position_i.block<3, 3>(O_P, O_P) = -Qi.inverse().toRotationMatrix();
-                //jacobian_position_i.block<3, 3>(O_P, O_P) = -MASS * Qi.inverse().toRotationMatrix();
-
 
                 jacobian_position_i = sqrt_info * jacobian_position_i;
 
                 if (jacobian_position_i.maxCoeff() > 1e8 || jacobian_position_i.minCoeff() < -1e8)
                 {
-                    ROS_WARN("numerical unstable in jacobian of model residual wrt position_i");
+                    //ROS_WARN("numerical unstable in jacobian of model residual wrt position_i");
                     //std::cout << sqrt_info << std::endl;
                     //ROS_BREAK();
                 }
@@ -137,13 +135,14 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 Eigen::Map<Eigen::Matrix<double, 6, 4, Eigen::RowMajor>> jacobian_attitude_i(jacobians[1]);
                 jacobian_attitude_i.setZero();
 
-                jacobian_attitude_i.block<3, 3>(O_P, O_R-O_R) = Utility::skewSymmetric(Qi.inverse() * (0.5 * (G - Fexti/MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt));
+                /*jacobian_attitude_i.block<3, 3>(O_P, O_R-O_R) = Utility::skewSymmetric(Qi.inverse() * (0.5 * (G - Fexti/MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt));
 
-                jacobian_attitude_i.block<3, 3>(O_V-3, O_R-O_R) = Utility::skewSymmetric(Qi.inverse() * ((G - Fexti/MASS) * sum_dt + Vj - Vi));
+                jacobian_attitude_i.block<3, 3>(O_V-3, O_R-O_R) = Utility::skewSymmetric(Qi.inverse() * ((G - Fexti/MASS) * sum_dt + Vj - Vi));*/
+
+                jacobian_attitude_i.block<3, 3>(O_P, O_R-O_R) = Utility::skewSymmetric(Qi.inverse() * (0.5 * (G - Fexti) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt));
+
+                jacobian_attitude_i.block<3, 3>(O_V-3, O_R-O_R) = Utility::skewSymmetric(Qi.inverse() * ((G - Fexti) * sum_dt + Vj - Vi));
               
-                //jacobian_attitude_i.block<3, 3>(O_P, O_R-O_R) = Utility::skewSymmetric(MASS *Qi.inverse() * (0.5 * (G - Fexti/MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt));
-
-                //jacobian_attitude_i.block<3, 3>(O_V-3, O_R-O_R) = Utility::skewSymmetric(MASS *Qi.inverse() * ((G - Fexti/MASS) * sum_dt + Vj - Vi));             
                 jacobian_attitude_i = sqrt_info * jacobian_attitude_i;
 
                 if (jacobian_attitude_i.maxCoeff() > 1e8 || jacobian_attitude_i.minCoeff() < -1e8)
@@ -164,10 +163,6 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
 
                 jacobian_speed_i.block<3, 3>(O_V-3, O_V - O_V) = -Qi.inverse().toRotationMatrix();
 
-                //jacobian_speed_i.block<3, 3>(O_P, O_V - O_V) = -MASS * Qi.inverse().toRotationMatrix() * sum_dt;
-
-                //jacobian_speed_i.block<3, 3>(O_V-3, O_V - O_V) = -MASS * Qi.inverse().toRotationMatrix();
-
                 jacobian_speed_i = sqrt_info * jacobian_speed_i;
                 ROS_DEBUG_STREAM_ONCE("Model jacobian_speed_i after:" << jacobian_speed_i);
 
@@ -179,11 +174,13 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 Eigen::Map<Eigen::Matrix<double, 6, 3, Eigen::RowMajor>> jacobian_fext_i(jacobians[3]);
                 jacobian_fext_i.setZero();
 
-                jacobian_fext_i.block<3, 3>(O_P, 0) = - (0.5/MASS) * Qi.inverse().toRotationMatrix() * sum_dt * sum_dt;
-                jacobian_fext_i.block<3, 3>(O_V-3, 0) = - Qi.inverse().toRotationMatrix() * (sum_dt/MASS);
-                //jacobian_fext_i.block<3, 3>(O_P, 0) = - 0.5 * Qi.inverse().toRotationMatrix() * sum_dt * sum_dt;
-                //jacobian_fext_i.block<3, 3>(O_V-3, 0) = - Qi.inverse().toRotationMatrix() * sum_dt;
+/*                jacobian_fext_i.block<3, 3>(O_P, 0) = - (0.5/MASS) * Qi.inverse().toRotationMatrix() * sum_dt * sum_dt;
+                jacobian_fext_i.block<3, 3>(O_V-3, 0) = - Qi.inverse().toRotationMatrix() * (sum_dt/MASS);*/
+                jacobian_fext_i.block<3, 3>(O_P, 0) = - 0.5 * Qi.inverse().toRotationMatrix() * sum_dt * sum_dt;
+                jacobian_fext_i.block<3, 3>(O_V-3, 0) = - Qi.inverse().toRotationMatrix() * sum_dt;
+
                 Eigen::Matrix<double, 6, 3, Eigen::RowMajor> jacobian_fext_i_before = jacobian_fext_i;
+
                 jacobian_fext_i = sqrt_info * jacobian_fext_i;
                 ROS_DEBUG_STREAM_ONCE("Model jacobian_fext_i after:" << jacobian_fext_i);
 
@@ -214,7 +211,6 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 jacobian_position_j.setZero();
 
                 jacobian_position_j.block<3, 3>(O_P, O_P) = Qi.inverse().toRotationMatrix();
-                //jacobian_position_j.block<3, 3>(O_P, O_P) = MASS*Qi.inverse().toRotationMatrix();
 
                 jacobian_position_j = sqrt_info * jacobian_position_j;
                 ROS_DEBUG_STREAM_ONCE("Model jacobian_position_j after:" << jacobian_position_j);
@@ -228,7 +224,6 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                 jacobian_speed_j.setZero();
 
                 jacobian_speed_j.block<3, 3>(O_V-3, O_V - O_V) = Qi.inverse().toRotationMatrix();
-                //jacobian_speed_j.block<3, 3>(O_V-3, O_V - O_V) = MASS*Qi.inverse().toRotationMatrix();
 
                 jacobian_speed_j = sqrt_info * jacobian_speed_j;
                 ROS_DEBUG_STREAM_ONCE("Model jacobian_speed_j after:" << jacobian_speed_j);

@@ -12,6 +12,7 @@
 #include <std_msgs/Float32.h>
 //#include <mav_msgs/TorqueThrust.h>
 #include <quadrotor_msgs/ControlCommand.h>
+#include <quadrotor_common/control_command.h>
 
 #include <ceres/ceres.h>
 #include "factor/imu_factor.h"
@@ -37,6 +38,7 @@ class Estimator
     void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity, double Fz, const Vector3d &torque);
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header);
     void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t, Matrix3d _relo_r);
+    //void processControl(double dt_btw_this_and_prev_control, double Fz);
 
     // internal
     void clearState();
@@ -92,6 +94,7 @@ class Estimator
 
 
     vector<double> dt_buf[(WINDOW_SIZE + 1)]; // Delta t between 2 frames in the window?
+    //vector<double> control_dt_buf[(WINDOW_SIZE + 1)]; // Delta t between 2 frames in the window?
     vector<Vector3d> linear_acceleration_buf[(WINDOW_SIZE + 1)]; // acc at frames
     vector<Vector3d> angular_velocity_buf[(WINDOW_SIZE + 1)]; // ang vel at frames
     vector<double> Fz_buf[(WINDOW_SIZE + 1)];

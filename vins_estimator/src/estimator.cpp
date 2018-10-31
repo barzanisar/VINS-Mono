@@ -28,6 +28,8 @@ void Estimator::clearState()
         Vs[i].setZero();
         Bas[i].setZero();
         Bgs[i].setZero();
+        //Bas[i]<< -0.025266,  0.136696,    0.075593;
+        //Bgs[i]<< -0.003172, 0.021267, 0.078502;
         Fexts[i].setZero();
         dt_buf[i].clear();
         linear_acceleration_buf[i].clear();
@@ -95,9 +97,9 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
     }
     if (frame_count != 0)
     {
-        if (frame_count< 3){
+        /*if (frame_count< 3){
             ROS_DEBUG_STREAM(" frame_count: " << frame_count << " am_1 " << linear_acceleration.transpose());
-        }
+        }*/
         pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity, Fz, torque);
 
         //if(solver_flag != NON_LINEAR)
@@ -113,26 +115,28 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
 
         int j = frame_count;         // initial guess propagation // should we average it with control inputs???, If yes, then uncomment 2 lines below
         Vector3d un_acc_0 = Rs[j] * (acc_0 - Bas[j]) - g; 
-        //Vector3d body_thrust_0(Fz_0, 0.0, 0.0);
-        //Vector3d control_acc_0 = (Rs[j] * body_thrust_0 + Fexts[j])/MASS - g;
+        //Vector3d body_thrust_0(0.0, 0.0, Fz_0);
+        //Vector3d control_acc_0 = Rs[j] * body_thrust_0 + Fexts[j]/MASS - g;
         ROS_DEBUG_STREAM_THROTTLE(0.2," Gravity " << g.transpose());
-        Vector3d control_acc_0 = (Rs[j].leftCols<1>() * Fz_0 + Fexts[j])/MASS - g;
+        //ROS_DEBUG_STREAM_ONCE(" Rs[j] " << Rs[j]);
+        //ROS_DEBUG_STREAM_ONCE(" Rs[j] right col " << Rs[j].rightCols<1>());
+        Vector3d control_acc_0 = Rs[j].rightCols<1>() * Fz_0 + Fexts[j] - g; // Fz_0 is the collective motor thrust in m/s2
         Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - Bgs[j];
         Rs[j] *= Utility::deltaQ(un_gyr * dt).toRotationMatrix();
         Vector3d un_acc_1 = Rs[j] * (linear_acceleration - Bas[j]) - g;
-        //Vector3d body_thrust_1(Fz, 0.0, 0.0);
-        //Vector3d control_acc_1 = (Rs[j] * body_thrust_1 + Fexts[j])/MASS - g;
-        Vector3d control_acc_1 = (Rs[j].leftCols<1>() * Fz + Fexts[j])/MASS - g;
+        //Vector3d body_thrust_1(0.0, 0.0, Fz);
+        //Vector3d control_acc_1 = Rs[j] * body_thrust_1 + Fexts[j]/MASS - g;
+        Vector3d control_acc_1 = Rs[j].rightCols<1>() * Fz + Fexts[j] - g; // assume Fexts as acc_exts
         //un_acc_0 = 0.5 * (un_acc_0 + control_acc_0);
         //un_acc_1 = 0.5 * (un_acc_1 + control_acc_1);
-        Vector3d un_acc = 0.5 * (control_acc_0 + control_acc_1);
-        if (un_acc != (0.5 * (un_acc_0 + un_acc_1)))
+        //Vector3d un_acc = 0.5 * (control_acc_0 + control_acc_1);
+        /*if (un_acc != (0.5 * (un_acc_0 + un_acc_1)))
         {
             ROS_DEBUG_STREAM_THROTTLE(0.2," Different un_acc_0 " << un_acc_0.transpose());
             ROS_DEBUG_STREAM_THROTTLE(0.2," un_acc_1 " << un_acc_1.transpose());
             ROS_DEBUG_STREAM_THROTTLE(0.2," control_acc_0 " << control_acc_0.transpose());
             ROS_DEBUG_STREAM_THROTTLE(0.2," control_acc_1 " << control_acc_1.transpose());
-        }
+        }*/
     
         Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
         Ps[j] += dt * Vs[j] + 0.5 * dt * dt * un_acc;
@@ -143,6 +147,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
     Fz_0 = Fz;
     torque_0 = torque;
 }
+
 
 void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header)
 {
@@ -397,6 +402,10 @@ bool Estimator::visualInitialAlign()
     VectorXd x;
     //solve scale
     bool result = VisualIMUAlignment(all_image_frame, Bgs, g, x);
+/*    for (int i = 0; i < WINDOW_SIZE + 1; i++)
+    {
+        Bgs[i]<< -0.003172, 0.021267, 0.078502;
+    }*/
     if(!result)
     {
         ROS_DEBUG("solve g failed!");
@@ -682,10 +691,10 @@ bool Estimator::failureDetection()
         ROS_INFO(" big IMU gyr bias estimation %f", Bgs[WINDOW_SIZE].norm());
         return true; //
     }
-    if (Fexts[WINDOW_SIZE].norm() > 100)
+    if (Fexts[WINDOW_SIZE].norm() > 25)
     {
         ROS_INFO(" big Fext estimation %f", Fexts[WINDOW_SIZE].norm());
-        return true; 
+        //return true; 
     }
     /*
     if (tic(0) > 1)
@@ -1011,7 +1020,8 @@ void Estimator::optimization()
             addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i - 1];
             addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i - 1];
             addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i - 1];
-            addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
+            if (i!=WINDOW_SIZE)
+                addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
         }
         for (int i = 0; i < NUM_OF_CAM; i++)
         {   
@@ -1046,7 +1056,7 @@ void Estimator::optimization()
                 {
                     ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Speed[WINDOW_SIZE - 1]);
                     ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Bias[WINDOW_SIZE - 1]);
-                    ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Fext[WINDOW_SIZE - 1]); //why need this?
+                    ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Fext[WINDOW_SIZE - 2]); //why need this?
                     if (last_marginalization_parameter_blocks[i] == para_Position[WINDOW_SIZE - 1] ||
                         last_marginalization_parameter_blocks[i] == para_Attitude[WINDOW_SIZE - 1])
                         drop_set.push_back(i);
@@ -1081,7 +1091,7 @@ void Estimator::optimization()
                     addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i - 1];
                     addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i - 1];
                     addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i - 1];
-                    addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
+                    //addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
                 }
                 else
                 {
@@ -1092,6 +1102,19 @@ void Estimator::optimization()
                     addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
                 }
             }
+            /*for (int i = 0; i <= WINDOW_SIZE-1; i++)
+            {
+                if (i == WINDOW_SIZE - 2)
+                    continue;
+                else if (i == WINDOW_SIZE-1)
+                {
+                    addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
+                }
+                else
+                {
+                    addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
+                }
+            }*/
             for (int i = 0; i < NUM_OF_CAM; i++)
             {
                 addr_shift[reinterpret_cast<long>(para_Ex_Position[i])] = para_Ex_Position[i];

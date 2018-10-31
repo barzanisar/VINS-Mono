@@ -64,9 +64,9 @@ gyr_w: 0.000038785 #       # gyroscope bias random work noise standard deviation
 g_norm: 9.81007     # gravity magnitude
 
 #model parameters       The more accurate parameters you provide, the better performance
-control_thrust_n:  0.001            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
+control_thrust_n:  0.004            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
 apply_model_preintegration:  1      # set to 1 to apply model preinteg
-mass: 1.56779                       # mass of asctec firefly
+mass: 0.68                       # mass of asctec hummingbird 0.716
 
 #loop closure parameters
 loop_closure: 0                    # start loop closure
