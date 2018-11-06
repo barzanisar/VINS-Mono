@@ -3,7 +3,9 @@ Panels:
     Help Height: 0
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
+      Expanded:
+        - /ground_truth_path1
+        - /Odometry1
       Splitter Ratio: 0.465116
     Tree Height: 221
   - Class: rviz/Selection
@@ -269,7 +271,7 @@ Visualization Manager:
           Marker Topic: /pose_graph/pose_graph
           Name: loop_visual
           Namespaces:
-            CameraPoseVisualization: true
+            {}
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
@@ -440,6 +442,26 @@ Visualization Manager:
           Value: true
       Enabled: true
       Name: pose_graph
+    - Alpha: 1
+      Class: rviz/PointStamped
+      Color: 204; 41; 204
+      Enabled: false
+      History Length: 5000
+      Name: PointStamped
+      Radius: 1
+      Topic: /hummingbird/ground_truth/position
+      Unreliable: false
+      Value: false
+    - Angle Tolerance: 0.01
+      Class: rviz/Odometry
+      Color: 255; 25; 0
+      Enabled: true
+      Keep: 100
+      Length: 1
+      Name: Odometry
+      Position Tolerance: 0.01
+      Topic: /hummingbird/ground_truth/odometry
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -462,7 +484,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 17.2877
+      Distance: 40.1551
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
@@ -474,10 +496,10 @@ Visualization Manager:
         Z: 2.13201e-05
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.209797
+      Pitch: 0.199797
       Target Frame: <Fixed Frame>
       Value: XYOrbit (rviz)
-      Yaw: 3.52223
+      Yaw: 1.22223
     Saved: ~
 Window Geometry:
   Displays:
@@ -495,8 +517,8 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1390
-  X: 2107
-  Y: 89
+  X: 252
+  Y: 14
   loop_match_image:
     collapsed: false
   raw_image:

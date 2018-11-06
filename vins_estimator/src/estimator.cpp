@@ -78,7 +78,7 @@ void Estimator::clearState()
     drift_correct_t = Vector3d::Zero();
 }
 
-void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity, double Fz, const Vector3d &torque) // Fz is actually thrust in the body x axis which points upwards opposite gravity when quad is at hover
+void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity, double Fz, const Vector3d &torque, const std_msgs::Header &imgheader) // Fz is actually thrust in the body x axis which points upwards opposite gravity when quad is at hover
 {
     if (!first_imu)
     {
@@ -151,14 +151,41 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
 
 void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header)
 {
+    // write result to file
+    if (APPLY_MODEL_PREINTEGRATION)
+    {
+        ofstream foutC("/home/barza/barza-vins-out/output/preintegrations.csv", ios::app);
+        foutC.setf(ios::fixed, ios::floatfield);
+        foutC.precision(0);
+        foutC << header.stamp.toSec() * 1e9 << "," << frame_count << ",";
+        foutC.precision(5);
+        foutC << pre_integrations[frame_count]->delta_p.x() << "," //3
+              << pre_integrations[frame_count]->delta_p.y() << ","
+              << pre_integrations[frame_count]->delta_p.z() << ","
+              << pre_integrations[frame_count]->delta_p_model.x() << "," //6
+              << pre_integrations[frame_count]->delta_p_model.y() << ","
+              << pre_integrations[frame_count]->delta_p_model.z() << ","
+              << pre_integrations[frame_count]->delta_v.x() << "," //9
+              << pre_integrations[frame_count]->delta_v.y() << ","
+              << pre_integrations[frame_count]->delta_v.z() << ","
+              << pre_integrations[frame_count]->delta_v_model.x() << "," //12
+              << pre_integrations[frame_count]->delta_v_model.y() << ","
+              << pre_integrations[frame_count]->delta_v_model.z() << ","
+              << pre_integrations[frame_count]->delta_q.w() << "," //15
+              << pre_integrations[frame_count]->delta_q.x() << "," 
+              << pre_integrations[frame_count]->delta_q.y() << ","
+              << pre_integrations[frame_count]->delta_q.z() << endl;
+        foutC.close();
+    }
+
     ROS_DEBUG("new image coming ------------------------------------------");
     ROS_DEBUG("Adding feature points %lu", image.size()); // number of features visible in image i.e. no. of uv points
     if (f_manager.addFeatureCheckParallax(frame_count, image, td))
         marginalization_flag = MARGIN_OLD;
-    else
-        marginalization_flag = MARGIN_SECOND_NEW;
+    //else
+    //    marginalization_flag = MARGIN_SECOND_NEW;
 
-    ROS_DEBUG("this frame is--------------------%s", marginalization_flag ? "reject" : "accept");
+    ROS_DEBUG("this frame is--------------------%s timestamp: %f", marginalization_flag ? "reject" : "accept" , header.stamp.toSec());
     ROS_DEBUG("%s", marginalization_flag ? "Non-keyframe" : "Keyframe");
     ROS_DEBUG("Solving %d", frame_count);
     ROS_DEBUG("number of feature: %d", f_manager.getFeatureCount());
@@ -168,6 +195,9 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     imageframe.pre_integration = tmp_pre_integration;// contains imu meas between previous image and this image
     all_image_frame.insert(make_pair(header.stamp.toSec(), imageframe));
     tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Fz_0, torque_0, Bas[frame_count], Bgs[frame_count]};
+
+        
+
     
 
     if(ESTIMATE_EXTRINSIC == 2)
@@ -741,7 +771,7 @@ void Estimator::optimization()
         problem.AddParameterBlock(para_Attitude[i], SIZE_ATTITUDE, local_parameterization);
         problem.AddParameterBlock(para_Speed[i], SIZE_SPEED);
         problem.AddParameterBlock(para_Bias[i], SIZE_BIAS);
-        if (i!=WINDOW_SIZE)
+        if (i!=WINDOW_SIZE && APPLY_MODEL_PREINTEGRATION)
             problem.AddParameterBlock(para_Fext[i], SIZE_FORCES);
     }
     for (int i = 0; i < NUM_OF_CAM; i++)
@@ -791,11 +821,13 @@ void Estimator::optimization()
             continue;
         IMUFactor* imu_factor = new IMUFactor(pre_integrations[j]); // starts with preinteg[1] and para_pose 0,1 and ends adding preinteg[10]
         problem.AddResidualBlock(imu_factor, NULL, para_Position[i], para_Attitude[i], para_Speed[i], para_Bias[i], para_Position[j], para_Attitude[j], para_Speed[j], para_Bias[j]);
-        ModelFactor* model_factor = new ModelFactor(pre_integrations[j]); // starts with preinteg[1] and para_pose 0,1 and ends adding preinteg[10]
-        //ceres::CostFunction* model_factor = ModelFactor::Create(pre_integrations[j]);
-        problem.AddResidualBlock(model_factor, NULL, para_Position[i], para_Attitude[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]); //we want model_factor, NULL, para_Pose[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]   
         
-        
+        if(APPLY_MODEL_PREINTEGRATION)
+        {
+            ModelFactor* model_factor = new ModelFactor(pre_integrations[j]); // starts with preinteg[1] and para_pose 0,1 and ends adding preinteg[10]
+            //ceres::CostFunction* model_factor = ModelFactor::Create(pre_integrations[j]);
+            problem.AddResidualBlock(model_factor, NULL, para_Position[i], para_Attitude[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]); //we want model_factor, NULL, para_Pose[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]   
+        } 
           
     }
     int f_m_cnt = 0;
@@ -826,15 +858,7 @@ void Estimator::optimization()
                                                                      it_per_id.feature_per_frame[0].cur_td, it_per_frame.cur_td,
                                                                      it_per_id.feature_per_frame[0].uv.y(), it_per_frame.uv.y());
                     problem.AddResidualBlock(f_td, loss_function, para_Position[imu_i], para_Attitude[imu_i], para_Position[imu_j], para_Attitude[imu_j], para_Ex_Position[0], para_Ex_Attitude[0], para_Feature[feature_index], para_Td[0]);
-                    /*
-                    double **para = new double *[5];
-                    para[0] = para_Pose[imu_i];
-                    para[1] = para_Pose[imu_j];
-                    para[2] = para_Ex_Pose[0];
-                    para[3] = para_Feature[feature_index];
-                    para[4] = para_Td[0];
-                    f_td->check(para);
-                    */
+
             }
             else
             {
@@ -923,9 +947,14 @@ void Estimator::optimization()
                 if (last_marginalization_parameter_blocks[i] == para_Position[0] ||
                     last_marginalization_parameter_blocks[i] == para_Attitude[0] ||
                     last_marginalization_parameter_blocks[i] == para_Speed[0] || 
-                    last_marginalization_parameter_blocks[i] == para_Bias[0] ||
-                    last_marginalization_parameter_blocks[i] == para_Fext[0]) // or external force[0]
+                    last_marginalization_parameter_blocks[i] == para_Bias[0]) 
                     drop_set.push_back(i);
+
+                if(APPLY_MODEL_PREINTEGRATION)
+                {
+                     if (last_marginalization_parameter_blocks[i] == para_Fext[0])
+                        drop_set.push_back(i);
+                }
             }
             // construct new marginlization_factor
             MarginalizationFactor *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
@@ -948,15 +977,18 @@ void Estimator::optimization()
         }
 
         {
-            if (pre_integrations[1]->sum_dt < 10.0)
+            if(APPLY_MODEL_PREINTEGRATION)
             {
-                ModelFactor* model_factor = new ModelFactor(pre_integrations[1]);
-                //ceres::CostFunction* model_factor = ModelFactor::Create(pre_integrations[1]);
- 
-                ResidualBlockInfo *residual_block_info = new ResidualBlockInfo(model_factor, NULL,
-                                                                           vector<double *>{para_Position[0], para_Attitude[0], para_Speed[0], para_Fext[0], para_Position[1], para_Speed[1]},
-                                                                           vector<int>{0, 1, 2, 3}); // {0, 1, 2, 3} index of parameter blocks to drop, i.e. drop para_Pose[0], para_SpeedBias[0], para_Fext[0]
-                marginalization_info->addResidualBlockInfo(residual_block_info);
+                if (pre_integrations[1]->sum_dt < 10.0)
+                {
+                    ModelFactor* model_factor = new ModelFactor(pre_integrations[1]);
+                    //ceres::CostFunction* model_factor = ModelFactor::Create(pre_integrations[1]);
+     
+                    ResidualBlockInfo *residual_block_info = new ResidualBlockInfo(model_factor, NULL,
+                                                                               vector<double *>{para_Position[0], para_Attitude[0], para_Speed[0], para_Fext[0], para_Position[1], para_Speed[1]},
+                                                                               vector<int>{0, 1, 2, 3}); // {0, 1, 2, 3} index of parameter blocks to drop, i.e. drop para_Pose[0], para_SpeedBias[0], para_Fext[0]
+                    marginalization_info->addResidualBlockInfo(residual_block_info);
+                }
             }
         }
 
@@ -1020,7 +1052,7 @@ void Estimator::optimization()
             addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i - 1];
             addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i - 1];
             addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i - 1];
-            if (i!=WINDOW_SIZE)
+            if (i!=WINDOW_SIZE && APPLY_MODEL_PREINTEGRATION)
                 addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
         }
         for (int i = 0; i < NUM_OF_CAM; i++)
@@ -1091,7 +1123,6 @@ void Estimator::optimization()
                     addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i - 1];
                     addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i - 1];
                     addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i - 1];
-                    //addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
                 }
                 else
                 {
@@ -1099,10 +1130,10 @@ void Estimator::optimization()
                     addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i];
                     addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i];
                     addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i];
-                    addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
+                    //addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
                 }
             }
-            /*for (int i = 0; i <= WINDOW_SIZE-1; i++)
+            for (int i = 0; APPLY_MODEL_PREINTEGRATION && i <= WINDOW_SIZE-1; i++) //either uncomment this or above
             {
                 if (i == WINDOW_SIZE - 2)
                     continue;
@@ -1114,7 +1145,7 @@ void Estimator::optimization()
                 {
                     addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
                 }
-            }*/
+            }
             for (int i = 0; i < NUM_OF_CAM; i++)
             {
                 addr_shift[reinterpret_cast<long>(para_Ex_Position[i])] = para_Ex_Position[i];

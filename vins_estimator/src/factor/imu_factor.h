@@ -66,8 +66,12 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
         //sqrt_info.setIdentity();
 
         residual = sqrt_info * residual;
+/*        ROS_INFO_STREAM_ONCE("IMU sqrt_info :" << sqrt_info);
 
-        ROS_DEBUG_STREAM_ONCE("IMU residual after:" << residual);
+        ROS_INFO_STREAM_ONCE("IMU covariance : ") ;
+        ROS_INFO_STREAM_ONCE(pre_integration->covariance);
+
+        ROS_DEBUG_STREAM_ONCE("IMU residual after:" << residual);*/
 
         if (jacobians)
         {

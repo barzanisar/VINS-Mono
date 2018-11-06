@@ -11,8 +11,10 @@
 #include <std_msgs/Header.h>
 #include <std_msgs/Float32.h>
 //#include <mav_msgs/TorqueThrust.h>
+#include <nav_msgs/Odometry.h>
 #include <quadrotor_msgs/ControlCommand.h>
 #include <quadrotor_common/control_command.h>
+#include <fstream>
 
 #include <ceres/ceres.h>
 #include "factor/imu_factor.h"
@@ -35,7 +37,7 @@ class Estimator
     void setParameter();
 
     // interface
-    void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity, double Fz, const Vector3d &torque);
+    void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity, double Fz, const Vector3d &torque, const std_msgs::Header &imgheader);
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header);
     void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t, Matrix3d _relo_r);
     //void processControl(double dt_btw_this_and_prev_control, double Fz);

@@ -19,7 +19,7 @@ CameraPoseVisualization cameraposevisual(0, 1, 0, 1);
 CameraPoseVisualization keyframebasevisual(0.0, 0.0, 1.0, 1.0);
 static double sum_of_path = 0;
 static Vector3d last_path(0.0, 0.0, 0.0);
-static bool start_recording = true;
+static bool start_recording_vis = true;
 
 void registerPub(ros::NodeHandle &n)
 {
@@ -195,17 +195,12 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
               << estimator.Fexts[WINDOW_SIZE].z() << endl;
         foutC.close();
 
-        //ofstream foutA("/home/barza/barza-vins-out/model_loop_estimated.txt", ios::app);
-        if (start_recording)
-        {
-            std::remove ("/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop/model_vio_mono/laptop_model_vio_mono_MH_01/stamped_traj_estimate.txt");
-        }
-        ofstream foutA("/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop/model_vio_mono/laptop_model_vio_mono_MH_01/stamped_traj_estimate.txt", ios::app);
+        ofstream foutA(RPG_RESULT_EVAL_PATH, ios::app);
         foutA.setf(ios::fixed, ios::floatfield);
-        if (start_recording)
+        if (start_recording_vis)
         {
             foutA << "# time x y z qx qy qz qw" << endl;
-            start_recording = false;
+            start_recording_vis = false;
         }
         foutA.precision(12);
         foutA << header.stamp.toSec() << " ";

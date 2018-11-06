@@ -1,6 +1,7 @@
 #include "parameters.h"
 
-double PROPELLER_FORCE_N;
+double THRUST_Z_N;
+double THRUST_X_Y_N;
 int APPLY_MODEL_PREINTEGRATION;
 double MASS;
 
@@ -24,6 +25,9 @@ int ESTIMATE_TD;
 int ROLLING_SHUTTER;
 std::string EX_CALIB_RESULT_PATH;
 std::string VINS_RESULT_PATH;
+std::string RPG_RESULT_EVAL_PATH;
+std::string VINS_GT_PATH;
+std::string RPG_GT_EVAL_PATH;
 std::string IMU_TOPIC;
 std::string CONTROL_TOPIC;
 double ROW, COL;
@@ -63,22 +67,72 @@ void readParameters(ros::NodeHandle &n)
     MIN_PARALLAX = fsSettings["keyframe_parallax"];
     MIN_PARALLAX = MIN_PARALLAX / FOCAL_LENGTH;
 
-    std::string OUTPUT_PATH;
-    fsSettings["output_path"] >> OUTPUT_PATH;
-    VINS_RESULT_PATH = OUTPUT_PATH + "/vins_result_no_loop_model.csv";
-    std::cout << "result path " << VINS_RESULT_PATH << std::endl;
-    std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
-    std::cout << "file is opened? " << !fout << " "<< fout.bad() << " "<< fout.fail()<< std::endl;
-    fout.close();
-
-    PROPELLER_FORCE_N = fsSettings["control_thrust_n"];
     APPLY_MODEL_PREINTEGRATION = fsSettings["apply_model_preintegration"];
-    MASS = fsSettings["mass"];
-    ROS_INFO("PROPELLER_FORCE_N: %f MASS: %f ", PROPELLER_FORCE_N, MASS);
     if (APPLY_MODEL_PREINTEGRATION == 1)
     {
         ROS_INFO("APPLY_MODEL_PREINTEGRATION !!!");
     }
+
+
+    std::string OUTPUT_PATH;
+    fsSettings["output_path"] >> OUTPUT_PATH;
+
+    std::string RPG_EVAL_PATH;
+    fsSettings["rpg_eval_path"] >> RPG_EVAL_PATH;
+
+    std::string SIMULATION_NAME;
+    fsSettings["simulation_name"] >> SIMULATION_NAME;
+
+    VINS_GT_PATH = OUTPUT_PATH + "/groundtruth_" + SIMULATION_NAME + ".csv";
+
+    if (APPLY_MODEL_PREINTEGRATION)
+    {
+        VINS_RESULT_PATH = OUTPUT_PATH + "/model_result.csv";
+        RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/model_sim/laptop_model_sim_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
+        RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/model_sim/laptop_model_sim_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
+    }
+    else
+    {
+        VINS_RESULT_PATH = OUTPUT_PATH + "/vins_result.csv";
+        RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/vins_sim/laptop_vins_sim_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
+        RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/vins_sim/laptop_vins_sim_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
+    }
+
+    
+    std::cout << "matlab result path " << VINS_RESULT_PATH << std::endl;
+    std::cout << "matlab groundtruth path " << VINS_GT_PATH << std::endl;
+    std::cout << "rpg result path " << RPG_RESULT_EVAL_PATH << std::endl;
+    std::cout << "rpg groundtruth path " << RPG_GT_EVAL_PATH << std::endl;
+/*    std::remove (VINS_RESULT_PATH);
+    std::remove (VINS_GT_PATH);
+    std::remove (RPG_RESULT_EVAL_PATH);
+    std::remove (RPG_GT_EVAL_PATH);*/
+
+    //can check for other paths as well here: 0 means all is good. 1 means error: file path must not exist.
+    std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
+    std::cout << "VINS_RESULT_PATH is opened? " << !fout << " "<< fout.bad() << " "<< fout.fail()<< std::endl;
+    fout.close();
+
+    std::ofstream fout1(VINS_GT_PATH, std::ios::out);
+    std::cout << "VINS_GT_PATH is opened? " << !fout1 << " "<< fout1.bad() << " "<< fout1.fail()<< std::endl;
+    fout1.close();
+
+    std::ofstream fout2(RPG_RESULT_EVAL_PATH, std::ios::out);
+    std::cout << "RPG_RESULT_EVAL_PATH is opened? " << !fout2 << " "<< fout2.bad() << " "<< fout2.fail()<< std::endl;
+    fout2.close();
+
+    std::ofstream fout3(RPG_GT_EVAL_PATH, std::ios::out);
+    std::cout << "RPG_GT_EVAL_PATH is opened? " << !fout3 << " "<< fout3.bad() << " "<< fout3.fail()<< std::endl;
+    fout3.close();
+
+    std::ofstream foutC("/home/barza/barza-vins-out/output/preintegrations.csv", std::ios::out);
+    std::cout << "preintegrations is opened? " << !foutC << " "<< foutC.bad() << " "<< foutC.fail()<< std::endl;
+    foutC.close();
+
+    THRUST_Z_N = fsSettings["control_thrust_z_n"];
+    THRUST_X_Y_N = fsSettings["control_thrust_x_y_n"];
+    MASS = fsSettings["mass"];
+    ROS_INFO("THRUST_Z_N: %f THRUST_X_Y_N: %f MASS: %f ", THRUST_Z_N, THRUST_X_Y_N, MASS);
 
     ACC_N = fsSettings["acc_n"];
     ACC_W = fsSettings["acc_w"];
@@ -102,7 +156,7 @@ void readParameters(ros::NodeHandle &n)
     {
         if ( ESTIMATE_EXTRINSIC == 1)
         {
-            ROS_WARN(" Optimize extrinsic param around initial guess!");
+            ROS_WARN("Optimize extrinsic param around initial guess!");
             EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
         }
         if (ESTIMATE_EXTRINSIC == 0)

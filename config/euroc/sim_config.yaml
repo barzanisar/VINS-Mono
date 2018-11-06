@@ -4,7 +4,10 @@
 imu_topic: "/hummingbird/imu" #   "/hummingbird/barza/imu"
 image_topic: "/hummingbird/rgb_camera/camera_1/image_raw" #   "/hummingbird/barza/cam"
 control_topic: "/hummingbird/control_command"
+
 output_path: "/home/barza/barza-vins-out/output"
+rpg_eval_path: "/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop"
+simulation_name: "lowFreqControl" #"/laptop_vins_sim_lowFreqControl"
 
 #camera calibration 
 model_type: PINHOLE
@@ -64,12 +67,13 @@ gyr_w: 0.000038785 #       # gyroscope bias random work noise standard deviation
 g_norm: 9.81007     # gravity magnitude
 
 #model parameters       The more accurate parameters you provide, the better performance
-control_thrust_n:  0.004            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
+control_thrust_z_n:  0.01            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
+control_thrust_x_y_n: 0.1
 apply_model_preintegration:  1      # set to 1 to apply model preinteg
-mass: 0.68                       # mass of asctec hummingbird 0.716
+mass: 0.73                       # mass of asctec hummingbird 0.716
 
 #loop closure parameters
-loop_closure: 0                    # start loop closure
+loop_closure: 0                   # start loop closure
 load_previous_pose_graph: 0        # load and reuse previous pose graph; load from 'pose_graph_save_path'
 fast_relocalization: 0             # useful in real-time and large project
 pose_graph_save_path: "/home/barza/barza-vins-out/output/pose_graph/" # save and load path
