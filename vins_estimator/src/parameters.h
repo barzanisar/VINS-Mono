@@ -61,12 +61,8 @@ enum SIZE_PARAMETERIZATION
     SIZE_ATTITUDE = 4, //  4 quaternion
     SIZE_SPEED = 3, // 3v
     SIZE_BIAS = 6, // 3ba, 3bg
-    //SIZE_SPEEDBIAS = 9,
     SIZE_FEATURE = 1, // 1/Zc for each landmark
     SIZE_FORCES = 3
-
-    //SIZE_POSE = 7 // for extrinsic pose
-
 };
 
 enum StateOrder
@@ -77,13 +73,3 @@ enum StateOrder
     O_BA = 9,
     O_BG = 12
 };
-
-/*enum NoiseOrder
-{   //these are not used
-    O_AN = 0, // noise
-    O_GN = 3,
-    O_AW = 6, // bias random walk
-    O_GW = 9,
-    O_UN = 12 // change this, index for noise in utot i.e. in body Fx
-
-};*/

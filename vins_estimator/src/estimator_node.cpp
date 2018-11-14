@@ -161,7 +161,7 @@ getMeasurements1()
         
         while (imu_buf.front()->header.stamp.toSec() < img_msg->header.stamp.toSec() + estimator.td)
         {
-            //ROS_INFO_STREAM_ONCE("filling IMU buf" << imu_buf.front()->header.stamp.toSec());
+            ROS_INFO_STREAM_ONCE("filling IMU buf" << imu_buf.front()->header.stamp.toSec());
             IMUs.emplace_back(imu_buf.front());
             imu_buf.pop();
         }
@@ -170,7 +170,7 @@ getMeasurements1()
 
         while (control_buf.front()->header.stamp.toSec() < img_msg->header.stamp.toSec() + estimator.td)
         {
-            //ROS_INFO_STREAM_ONCE("filling control buf" << control_buf.front()->header.stamp.toSec());
+            ROS_INFO_STREAM_ONCE("filling control buf" << control_buf.front()->header.stamp.toSec());
             controls.emplace_back(control_buf.front());
             control_buf.pop();
         }

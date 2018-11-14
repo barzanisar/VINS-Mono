@@ -182,8 +182,8 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     ROS_DEBUG("Adding feature points %lu", image.size()); // number of features visible in image i.e. no. of uv points
     if (f_manager.addFeatureCheckParallax(frame_count, image, td))
         marginalization_flag = MARGIN_OLD;
-    //else
-    //    marginalization_flag = MARGIN_SECOND_NEW;
+    else
+        marginalization_flag = MARGIN_SECOND_NEW;
 
     ROS_DEBUG("this frame is--------------------%s timestamp: %f", marginalization_flag ? "reject" : "accept" , header.stamp.toSec());
     ROS_DEBUG("%s", marginalization_flag ? "Non-keyframe" : "Keyframe");
@@ -196,9 +196,6 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     all_image_frame.insert(make_pair(header.stamp.toSec(), imageframe));
     tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Fz_0, torque_0, Bas[frame_count], Bgs[frame_count]};
 
-        
-
-    
 
     if(ESTIMATE_EXTRINSIC == 2)
     {
@@ -432,10 +429,7 @@ bool Estimator::visualInitialAlign()
     VectorXd x;
     //solve scale
     bool result = VisualIMUAlignment(all_image_frame, Bgs, g, x);
-/*    for (int i = 0; i < WINDOW_SIZE + 1; i++)
-    {
-        Bgs[i]<< -0.003172, 0.021267, 0.078502;
-    }*/
+
     if(!result)
     {
         ROS_DEBUG("solve g failed!");
@@ -795,10 +789,7 @@ void Estimator::optimization()
     }
 
     TicToc t_whole, t_prepare;
-/*     for (int i = 0; i <= WINDOW_SIZE; i++)
-    {
-        Fexts[i].setZero();
-    }*/
+
     Fexts[WINDOW_SIZE-1].setZero();
     Fexts[WINDOW_SIZE].setZero();
     vector2double(true); // set initial guess to optimization parameters
@@ -924,8 +915,11 @@ void Estimator::optimization()
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     //cout << summary.BriefReport() << endl;
-    ROS_DEBUG("Iterations : %d", static_cast<int>(summary.iterations.size()));
-    ROS_DEBUG("solver costs: %f", t_solver.toc());
+    num_iters = static_cast<int>(summary.iterations.size());
+    solve_time_ms = t_solver.toc();
+    ROS_DEBUG("Iterations : %d", num_iters);
+    ROS_DEBUG("solver costs: %f", solve_time_ms);
+
 
     double2vector(); //updates all states with their new estimates
 
@@ -1088,7 +1082,7 @@ void Estimator::optimization()
                 {
                     ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Speed[WINDOW_SIZE - 1]);
                     ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Bias[WINDOW_SIZE - 1]);
-                    ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Fext[WINDOW_SIZE - 2]); //why need this?
+                    //ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_Fext[WINDOW_SIZE - 2]); //why need this?
                     if (last_marginalization_parameter_blocks[i] == para_Position[WINDOW_SIZE - 1] ||
                         last_marginalization_parameter_blocks[i] == para_Attitude[WINDOW_SIZE - 1])
                         drop_set.push_back(i);
@@ -1130,10 +1124,11 @@ void Estimator::optimization()
                     addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i];
                     addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i];
                     addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i];
-                    //addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
+                    if (APPLY_MODEL_PREINTEGRATION)
+                        addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
                 }
             }
-            for (int i = 0; APPLY_MODEL_PREINTEGRATION && i <= WINDOW_SIZE-1; i++) //either uncomment this or above
+            /*for (int i = 0; APPLY_MODEL_PREINTEGRATION && i <= WINDOW_SIZE-1; i++) //either uncomment this or above
             {
                 if (i == WINDOW_SIZE - 2)
                     continue;
@@ -1145,7 +1140,7 @@ void Estimator::optimization()
                 {
                     addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i];
                 }
-            }
+            }*/
             for (int i = 0; i < NUM_OF_CAM; i++)
             {
                 addr_shift[reinterpret_cast<long>(para_Ex_Position[i])] = para_Ex_Position[i];

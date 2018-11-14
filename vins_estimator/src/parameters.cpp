@@ -103,10 +103,6 @@ void readParameters(ros::NodeHandle &n)
     std::cout << "matlab groundtruth path " << VINS_GT_PATH << std::endl;
     std::cout << "rpg result path " << RPG_RESULT_EVAL_PATH << std::endl;
     std::cout << "rpg groundtruth path " << RPG_GT_EVAL_PATH << std::endl;
-/*    std::remove (VINS_RESULT_PATH);
-    std::remove (VINS_GT_PATH);
-    std::remove (RPG_RESULT_EVAL_PATH);
-    std::remove (RPG_GT_EVAL_PATH);*/
 
     //can check for other paths as well here: 0 means all is good. 1 means error: file path must not exist.
     std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
@@ -125,9 +121,12 @@ void readParameters(ros::NodeHandle &n)
     std::cout << "RPG_GT_EVAL_PATH is opened? " << !fout3 << " "<< fout3.bad() << " "<< fout3.fail()<< std::endl;
     fout3.close();
 
-    std::ofstream foutC("/home/barza/barza-vins-out/output/preintegrations.csv", std::ios::out);
-    std::cout << "preintegrations is opened? " << !foutC << " "<< foutC.bad() << " "<< foutC.fail()<< std::endl;
-    foutC.close();
+    if (APPLY_MODEL_PREINTEGRATION)
+    {
+        std::ofstream foutC("/home/barza/barza-vins-out/output/preintegrations.csv", std::ios::out);
+        std::cout << "preintegrations is opened? " << !foutC << " "<< foutC.bad() << " "<< foutC.fail()<< std::endl;
+        foutC.close();
+    }
 
     THRUST_Z_N = fsSettings["control_thrust_z_n"];
     THRUST_X_Y_N = fsSettings["control_thrust_x_y_n"];
@@ -181,9 +180,6 @@ void readParameters(ros::NodeHandle &n)
     INIT_DEPTH = 5.0;
     BIAS_ACC_THRESHOLD = 0.1;
     BIAS_GYR_THRESHOLD = 0.1;
-    INERTIA << 0.0347563, 0.0, 0.0, 
-               0.0, 0.0458929, 0.0, 
-               0.0, 0.0, 0.0977;
 
     TD = fsSettings["td"];
     ESTIMATE_TD = fsSettings["estimate_td"];

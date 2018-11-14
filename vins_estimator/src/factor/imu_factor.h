@@ -66,7 +66,7 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
         //sqrt_info.setIdentity();
 
         residual = sqrt_info * residual;
-/*        ROS_INFO_STREAM_ONCE("IMU sqrt_info :" << sqrt_info);
+/*      ROS_INFO_STREAM_ONCE("IMU sqrt_info :" << sqrt_info);
 
         ROS_INFO_STREAM_ONCE("IMU covariance : ") ;
         ROS_INFO_STREAM_ONCE(pre_integration->covariance);
@@ -238,18 +238,6 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
                 //ROS_ASSERT(fabs(jacobian_bias_j.maxCoeff()) < 1e8);
                 //ROS_ASSERT(fabs(jacobian_bias_j.minCoeff()) < 1e8);
             }
-            // if (jacobians[4])// derivative of residual wrt  3D external force
-            // {
-            //     Eigen::Map<Eigen::Matrix<double, 15, 3, Eigen::RowMajor>> jacobian_fext_i(jacobians[4]);
-            //     jacobian_fext_i.setZero();
-
-            //     jacobian_fext_i.block<3, 3>(O_P, 0) = - 0.5 * Qi.inverse().toRotationMatrix() * sum_dt * sum_dt * (1/MASS);
-            //     jacobian_fext_i.block<3, 3>(O_V, 0) = - Qi.inverse().toRotationMatrix() * sum_dt * (1/MASS);
-            //     jacobian_fext_i = sqrt_info * jacobian_fext_i;
-
-            //     //ROS_ASSERT(fabs(jacobian_fext_i.maxCoeff()) < 1e8);
-            //     //ROS_ASSERT(fabs(jacobian_fext_i.minCoeff()) < 1e8);
-            // }
         }
 
         return true;

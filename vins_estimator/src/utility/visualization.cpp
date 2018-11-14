@@ -192,7 +192,9 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
               << estimator.Bgs[WINDOW_SIZE].z() << "," 
               << estimator.Fexts[WINDOW_SIZE].x() << "," //18
               << estimator.Fexts[WINDOW_SIZE].y() << ","
-              << estimator.Fexts[WINDOW_SIZE].z() << endl;
+              << estimator.Fexts[WINDOW_SIZE].z() << "," 
+              << estimator.num_iters << "," 
+              << estimator.solve_time_ms << endl; 
         foutC.close();
 
         ofstream foutA(RPG_RESULT_EVAL_PATH, ios::app);
