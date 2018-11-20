@@ -28,14 +28,12 @@ void Estimator::clearState()
         Vs[i].setZero();
         Bas[i].setZero();
         Bgs[i].setZero();
-        //Bas[i]<< -0.025266,  0.136696,    0.075593;
-        //Bgs[i]<< -0.003172, 0.021267, 0.078502;
         Fexts[i].setZero();
         dt_buf[i].clear();
         linear_acceleration_buf[i].clear();
         angular_velocity_buf[i].clear();
         Fz_buf[i].clear();
-        torque_buf[i].clear(); 
+        
 
         if (pre_integrations[i] != nullptr)
         {
@@ -78,7 +76,7 @@ void Estimator::clearState()
     drift_correct_t = Vector3d::Zero();
 }
 
-void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity, double Fz, const Vector3d &torque, const std_msgs::Header &imgheader) // Fz is actually thrust in the body x axis which points upwards opposite gravity when quad is at hover
+void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity, double Fz, const std_msgs::Header &imgheader) // Fz is actually thrust in the body x axis which points upwards opposite gravity when quad is at hover
 {
     if (!first_imu)
     {
@@ -86,24 +84,23 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
         acc_0 = linear_acceleration;
         gyr_0 = angular_velocity;
         Fz_0 = Fz;
-        torque_0 = torque; 
     }
 
     if (!pre_integrations[frame_count]) // if preinteg at the frame count is nullptr i.e. preinteg has not happened yet 
     {
         //ROS_DEBUG_STREAM(" frame_count: " << frame_count << " am_0 " << acc_0.transpose());
         //ROS_DEBUG_STREAM(" Bas: " << Bas[frame_count].transpose());
-        pre_integrations[frame_count] = new IntegrationBase{acc_0, gyr_0, Fz_0, torque_0, Bas[frame_count], Bgs[frame_count]}; 
+        pre_integrations[frame_count] = new IntegrationBase{acc_0, gyr_0, Fz_0, Bas[frame_count], Bgs[frame_count]}; 
     }
     if (frame_count != 0)
     {
         /*if (frame_count< 3){
             ROS_DEBUG_STREAM(" frame_count: " << frame_count << " am_1 " << linear_acceleration.transpose());
         }*/
-        pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity, Fz, torque);
+        pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity, Fz);
 
         //if(solver_flag != NON_LINEAR)
-            tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity, Fz, torque);
+            tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity, Fz);
             
 
 
@@ -111,7 +108,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
         linear_acceleration_buf[frame_count].push_back(linear_acceleration);
         angular_velocity_buf[frame_count].push_back(angular_velocity);
         Fz_buf[frame_count].push_back(Fz);
-        torque_buf[frame_count].push_back(torque);
+        
 
         int j = frame_count;         // initial guess propagation // should we average it with control inputs???, If yes, then uncomment 2 lines below
         Vector3d un_acc_0 = Rs[j] * (acc_0 - Bas[j]) - g; 
@@ -145,7 +142,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
     acc_0 = linear_acceleration;
     gyr_0 = angular_velocity;
     Fz_0 = Fz;
-    torque_0 = torque;
+    
 }
 
 
@@ -194,7 +191,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     ImageFrame imageframe(image, header.stamp.toSec());
     imageframe.pre_integration = tmp_pre_integration;// contains imu meas between previous image and this image
     all_image_frame.insert(make_pair(header.stamp.toSec(), imageframe));
-    tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Fz_0, torque_0, Bas[frame_count], Bgs[frame_count]};
+    tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Fz_0, Bas[frame_count], Bgs[frame_count]};
 
 
     if(ESTIMATE_EXTRINSIC == 2)
@@ -430,6 +427,7 @@ bool Estimator::visualInitialAlign()
     //solve scale
     bool result = VisualIMUAlignment(all_image_frame, Bgs, g, x);
 
+
     if(!result)
     {
         ROS_DEBUG("solve g failed!");
@@ -496,8 +494,8 @@ bool Estimator::visualInitialAlign()
         Rs[i] = rot_diff * Rs[i];
         Vs[i] = rot_diff * Vs[i];
     }
-    ROS_DEBUG_STREAM("g0     " << g.transpose());
-    ROS_DEBUG_STREAM("my R0  " << Utility::R2ypr(Rs[0]).transpose()); 
+    ROS_INFO_STREAM("g0     " << g.transpose());
+    ROS_INFO_STREAM("my R0  " << Utility::R2ypr(Rs[0]).transpose()); 
 
     return true;
 }
@@ -631,6 +629,10 @@ void Estimator::double2vector()
 
         Rs[i] = rot_diff * Quaterniond(para_Attitude[i][3], para_Attitude[i][0], para_Attitude[i][1], para_Attitude[i][2]).normalized().toRotationMatrix();
         
+        ROS_INFO_STREAM_ONCE("Initial R_wb0: " << Rs[0]);
+        ROS_INFO_STREAM_ONCE("Initial R_wb1: " << Rs[1]);
+        ROS_INFO_STREAM_ONCE("Initial R_wb_window_size: " << Rs[WINDOW_SIZE]);
+
         Ps[i] = rot_diff * Vector3d(para_Position[i][0] - para_Position[0][0],
                                 para_Position[i][1] - para_Position[0][1],
                                 para_Position[i][2] - para_Position[0][2]) + origin_P0;
@@ -1183,7 +1185,7 @@ void Estimator::slideWindow()
                 linear_acceleration_buf[i].swap(linear_acceleration_buf[i + 1]);
                 angular_velocity_buf[i].swap(angular_velocity_buf[i + 1]);
                 Fz_buf[i].swap(Fz_buf[i + 1]);
-                torque_buf[i].swap(torque_buf[i + 1]);
+                
 
                 Headers[i] = Headers[i + 1];
                 Ps[i].swap(Ps[i + 1]);
@@ -1201,14 +1203,14 @@ void Estimator::slideWindow()
             Fexts[WINDOW_SIZE] = Fexts[WINDOW_SIZE - 1];
 
             delete pre_integrations[WINDOW_SIZE];
-            pre_integrations[WINDOW_SIZE] = new IntegrationBase{acc_0, gyr_0, Fz_0, torque_0, Bas[WINDOW_SIZE], Bgs[WINDOW_SIZE]};
+            pre_integrations[WINDOW_SIZE] = new IntegrationBase{acc_0, gyr_0, Fz_0, Bas[WINDOW_SIZE], Bgs[WINDOW_SIZE]};
             
 
             dt_buf[WINDOW_SIZE].clear();
             linear_acceleration_buf[WINDOW_SIZE].clear();
             angular_velocity_buf[WINDOW_SIZE].clear();
             Fz_buf[WINDOW_SIZE].clear();
-            torque_buf[WINDOW_SIZE].clear();
+            
 
             if (true || solver_flag == INITIAL)
             {
@@ -1232,15 +1234,15 @@ void Estimator::slideWindow()
                 Vector3d tmp_linear_acceleration = linear_acceleration_buf[frame_count][i];
                 Vector3d tmp_angular_velocity = angular_velocity_buf[frame_count][i];
                 double tmp_Fz = Fz_buf[frame_count][i];
-                Vector3d tmp_torque = torque_buf[frame_count][i];
+                
 
-                pre_integrations[frame_count - 1]->push_back(tmp_dt, tmp_linear_acceleration, tmp_angular_velocity, tmp_Fz, tmp_torque);
+                pre_integrations[frame_count - 1]->push_back(tmp_dt, tmp_linear_acceleration, tmp_angular_velocity, tmp_Fz);
 
                 dt_buf[frame_count - 1].push_back(tmp_dt);
                 linear_acceleration_buf[frame_count - 1].push_back(tmp_linear_acceleration);
                 angular_velocity_buf[frame_count - 1].push_back(tmp_angular_velocity);
                 Fz_buf[frame_count - 1].push_back(tmp_Fz);
-                torque_buf[frame_count - 1].push_back(tmp_torque);
+                
             }
 
             Headers[frame_count - 1] = Headers[frame_count];
@@ -1252,13 +1254,13 @@ void Estimator::slideWindow()
             Fexts[frame_count - 1] = Fexts[frame_count];
 
             delete pre_integrations[WINDOW_SIZE];
-            pre_integrations[WINDOW_SIZE] = new IntegrationBase{acc_0, gyr_0, Fz_0, torque_0, Bas[WINDOW_SIZE], Bgs[WINDOW_SIZE]};
+            pre_integrations[WINDOW_SIZE] = new IntegrationBase{acc_0, gyr_0, Fz_0, Bas[WINDOW_SIZE], Bgs[WINDOW_SIZE]};
 
             dt_buf[WINDOW_SIZE].clear();
             linear_acceleration_buf[WINDOW_SIZE].clear();
             angular_velocity_buf[WINDOW_SIZE].clear();
             Fz_buf[WINDOW_SIZE].clear();
-            torque_buf[WINDOW_SIZE].clear();
+            
 
             slideWindowNew();
         }

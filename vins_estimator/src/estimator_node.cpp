@@ -17,17 +17,18 @@ Estimator estimator;
 
 std::condition_variable con;
 double current_time = -1;
-double current_control_time = -1;
+//double current_control_time = -1;
 queue<sensor_msgs::ImuConstPtr> imu_buf;
 queue<quadrotor_msgs::ControlCommand::ConstPtr> control_buf; //quadrotor_msgs/ControlCommand
 queue<sensor_msgs::PointCloudConstPtr> feature_buf;
 queue<sensor_msgs::PointCloudConstPtr> relo_buf;
-quadrotor_msgs::ControlCommandPtr last_control_msg_ptr = nullptr;
-bool start_recording = true;
+//quadrotor_msgs::ControlCommandPtr last_control_msg_ptr = nullptr;
 //quadrotor_common::ControlCommand last_control_cmd;
 //quadrotor_msgs::ControlCommand last_control_msg;
+bool start_recording = true;
+
 int sum_of_wait = 0;
-int count_debug = 0;
+//int count_debug = 0;
 
 std::mutex m_buf;
 std::mutex m_state;
@@ -46,12 +47,8 @@ bool init_imu = 1;
 double last_imu_t = 0;
 bool beginning = true;
 double last_Fz=0;
-
 double last_control_t = 0;
-double first_control_t = 0;
-bool first_imu_control_match = false;
-bool first_control_msg_received = false;
-//bool first_img_removed=false;
+
 
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 {
@@ -156,6 +153,8 @@ getMeasurements1()
         sensor_msgs::PointCloudConstPtr img_msg = feature_buf.front();
         feature_buf.pop();
 
+        ROS_INFO_STREAM_ONCE("filling image buf" << img_msg->header.stamp.toSec());
+
         std::vector<sensor_msgs::ImuConstPtr> IMUs;
         std::vector<quadrotor_msgs::ControlCommand::ConstPtr> controls;
         
@@ -175,6 +174,7 @@ getMeasurements1()
             control_buf.pop();
         }
         controls.emplace_back(control_buf.front());
+        //ROS_INFO_STREAM("filled control buf" << control_buf.front()->header.stamp.toSec());
 
 /*
         if (last_control_msg_ptr)
@@ -279,6 +279,7 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
         init_feature = 1;
         return;
     }
+    ROS_INFO_STREAM_ONCE("First image_msg_stamp_sec: " << feature_msg->header.stamp.toSec());
     m_buf.lock();
     feature_buf.push(feature_msg); //one frame msg
     m_buf.unlock();
@@ -303,7 +304,7 @@ void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
         estimator.setParameter();
         m_estimator.unlock();
         current_time = -1;
-        current_control_time -1;
+        //beginning = true;
         last_imu_t = 0;
         last_control_t = 0;
     }
@@ -362,6 +363,20 @@ void groundtruth_callback(const nav_msgs::OdometryConstPtr &gt_msg)
         
 }
 
+void external_force_sensor_callback(const geometry_msgs::WrenchStampedConstPtr &fext_msg)
+{
+    // write ground truth for external forces to file
+        ofstream foutC("/home/barza/barza-vins-out/output/external_force_gt.csv", ios::app);
+        foutC.setf(ios::fixed, ios::floatfield);
+        foutC.precision(0);
+        foutC << fext_msg->header.stamp.toSec() * 1e9 << ",";
+        foutC.precision(5);
+        foutC << fext_msg->wrench.force.x << "," //2
+              << fext_msg->wrench.force.y << ","
+              << fext_msg->wrench.force.z << endl;
+        foutC.close();
+}
+
 // thread: visual-inertial odometry
 void VIO_MODEL_process()
 {
@@ -379,19 +394,21 @@ void VIO_MODEL_process()
         for (auto &measurement : measurements)
         {
             auto img_msg = measurement.second;
-            double dx = 0, dy = 0, dz = 0, rx = 0, ry = 0, rz = 0, Fz = last_Fz, Tx = 0, Ty = 0, Tz = 0; //imu meas container
+            double dx = 0, dy = 0, dz = 0, rx = 0, ry = 0, rz = 0, Fz = last_Fz; //Tx = 0, Ty = 0, Tz = 0; //imu meas container
             std::vector<sensor_msgs::ImuConstPtr>::iterator imu_it = measurement.first.first.begin(); 
             std::vector<quadrotor_msgs::ControlCommand::ConstPtr>::iterator control_it = measurement.first.second.begin();
 
             
             for (; imu_it!=measurement.first.first.end(); ++imu_it)//for (auto &imu_msg : measurement.first.first)
             {
+
                 double t = (*imu_it)->header.stamp.toSec();
-                
+                //printf("getting imu time %d \n", t);
 
                 if (imu_it == measurement.first.first.begin()){
                     ROS_DEBUG_STREAM("IMU begin time, acc: "<< t << "\t" << (*imu_it)->linear_acceleration.x << "\t" << (*imu_it)->linear_acceleration.y << "\t" << (*imu_it)->linear_acceleration.z);
                 }
+
 
                 if ((imu_it+1) == measurement.first.first.end()){
                     ROS_DEBUG_STREAM("IMU frame end time, acc: " << t << "\t" << (*imu_it)->linear_acceleration.x << "\t" << (*imu_it)->linear_acceleration.y << "\t" << (*imu_it)->linear_acceleration.z);
@@ -423,9 +440,10 @@ void VIO_MODEL_process()
                         //printf("New control_ts: %f control_thrust: %f \n", (*control_it)->header.stamp.toSec(), (*control_it)->collective_thrust);
                         Fz = (*control_it)->collective_thrust;
                         ++control_it;
+                        //printf("increasing control it \n");
                     }
 
-                    estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz), Fz, Vector3d(Tx, Ty, Tz), img_msg->header);
+                    estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz), Fz, img_msg->header);
 
                     //printf("imu_ts: %f imu: dt:%f acc_x: %f Fz: %f \n", t, dt, dx, Fz);
 
@@ -456,9 +474,11 @@ void VIO_MODEL_process()
                         ++control_it;
                     }
 
-                    estimator.processIMU(dt_1, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz), Fz, Vector3d(Tx, Ty, Tz), img_msg->header);
+                    estimator.processIMU(dt_1, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz), Fz, img_msg->header);
                     //printf("Here!! imu_ts: %f dt:%f Fz: %f \n",t, dt_1, Fz);
                 }
+
+                //printf("last fz updated \n");
 
                 last_Fz = Fz;
             }
@@ -488,6 +508,8 @@ void VIO_MODEL_process()
                 frame_index = relo_msg->channels[0].values[7];
                 estimator.setReloFrame(frame_stamp, frame_index, match_points, relo_t, relo_r);
             }
+
+            //ROS_DEBUG("processing vision data\n");
 
             ROS_DEBUG("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
 
@@ -558,6 +580,7 @@ int main(int argc, char **argv)
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
 
     ros::Subscriber sub_ground_truth = n.subscribe("/hummingbird/ground_truth/odometry", 2000, groundtruth_callback);
+    ros::Subscriber sub_force_sensor = n.subscribe("/hummingbird/ft_sensor_topic", 2000, external_force_sensor_callback);
 
     //std::thread measurement_process{VIO_process};
     std::thread measurement_process{VIO_MODEL_process};

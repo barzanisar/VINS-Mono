@@ -10,7 +10,7 @@ class IntegrationBase
 {
   public:
     IntegrationBase() = delete;
-    IntegrationBase(const Eigen::Vector3d &_acc_0, const Eigen::Vector3d &_gyr_0, const double &_Fz_0, const Eigen::Vector3d &_torque_0,
+    IntegrationBase(const Eigen::Vector3d &_acc_0, const Eigen::Vector3d &_gyr_0, const double &_Fz_0, 
                     const Eigen::Vector3d &_linearized_ba, const Eigen::Vector3d &_linearized_bg)
         : acc_0{_acc_0}, gyr_0{_gyr_0}, linearized_acc{_acc_0}, linearized_gyr{_gyr_0},
           linearized_ba{_linearized_ba}, linearized_bg{_linearized_bg},
@@ -29,29 +29,34 @@ class IntegrationBase
         noise.block<3, 3>(12, 12) =  (ACC_W * ACC_W) * Eigen::Matrix3d::Identity();
         noise.block<3, 3>(15, 15) =  (GYR_W * GYR_W) * Eigen::Matrix3d::Identity();
 
-        // for midpoint integration - makes sense when we use motor speeds instead of control commands
-        noise_model =  Eigen::Matrix<double, 15, 15>::Zero(); //matrix Q_model
-        noise_model(0, 0) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fx_0 sq
-        noise_model(1, 1) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fy_0 sq
-        noise_model(2, 2) = THRUST_Z_N * THRUST_Z_N; // sigma_Fz_0 sq
-        noise_model.block<3, 3>(3, 3) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity(); // sigma_gyr_0 sq
-        noise_model(6, 6) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fx_1 sq
-        noise_model(7, 7) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fy_1 sq
-        noise_model(8, 8) = THRUST_Z_N * THRUST_Z_N; // sigma_Fz_1 sq
-        noise_model.block<3, 3>(9, 9) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity(); // sigma_gyr_1 sq
-        noise_model.block<3, 3>(12, 12) =  (GYR_W * GYR_W) * Eigen::Matrix3d::Identity(); // sigma_bw_ sq
-
-/*        //for euler integration
-        noise_model =  Eigen::Matrix<double, 7, 7>::Zero(); //matrix Q_model
-        noise_model(0, 0) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fx_0 sq
-        noise_model(1, 1) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fy_0 sq
-        noise_model(2, 2) = THRUST_Z_N * THRUST_Z_N; // sigma_Fz_0 sq
-        noise_model.block<3, 3>(3, 3) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity(); // sigma_gyr_0 sq
-        noise_model.block<3, 3>(6, 6) =  (GYR_W * GYR_W) * Eigen::Matrix3d::Identity(); // sigma_bw_ sq*/
+        if (EULER_INTEGRATION)
+        {
+            //for euler integration
+            noise_model =  Eigen::Matrix<double, 9, 9>::Zero(); //matrix Q_model
+            noise_model(0, 0) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fx_0 sq
+            noise_model(1, 1) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fy_0 sq
+            noise_model(2, 2) = THRUST_Z_N * THRUST_Z_N; // sigma_Fz_0 sq
+            noise_model.block<3, 3>(3, 3) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity(); // sigma_gyr_0 sq
+            noise_model.block<3, 3>(6, 6) =  (GYR_W * GYR_W) * Eigen::Matrix3d::Identity(); // sigma_bw_ sq
+        }
+        else
+        {
+                // for midpoint integration - makes sense when we use motor speeds instead of control commands
+            noise_model =  Eigen::Matrix<double, 15, 15>::Zero(); //matrix Q_model
+            noise_model(0, 0) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fx_0 sq
+            noise_model(1, 1) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fy_0 sq
+            noise_model(2, 2) = THRUST_Z_N * THRUST_Z_N; // sigma_Fz_0 sq
+            noise_model.block<3, 3>(3, 3) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity(); // sigma_gyr_0 sq
+            noise_model(6, 6) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fx_1 sq
+            noise_model(7, 7) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fy_1 sq
+            noise_model(8, 8) = THRUST_Z_N * THRUST_Z_N; // sigma_Fz_1 sq
+            noise_model.block<3, 3>(9, 9) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity(); // sigma_gyr_1 sq
+            noise_model.block<3, 3>(12, 12) =  (GYR_W * GYR_W) * Eigen::Matrix3d::Identity(); // sigma_bw_ sq
+        }
 
     }
 
-    void push_back(double dt, const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr, const double &Fz, const Eigen::Vector3d &torque)
+    void push_back(double dt, const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr, const double &Fz)
     {
         dt_buf.push_back(dt);
         acc_buf.push_back(acc);
@@ -109,25 +114,34 @@ class IntegrationBase
         result_linearized_bg = linearized_bg; 
 
         Vector3d body_thrust_0 (0.0, 0.0, _Fz_0); // body z axis is pointing upwards parallel to propellers axis of rotation. This is mass-normalized thrust (m/s^2).
+        Vector3d body_thrust_1 (0.0, 0.0, _Fz_1); 
         Vector3d control_acc_0;
         Vector3d control_acc;
 
-        // Model midpoint-integration
-        Vector3d body_thrust_1 (0.0, 0.0, _Fz_1); 
-        control_acc_0 = delta_q * body_thrust_0; 
-        Vector3d control_acc_1 = result_delta_q * body_thrust_1; 
-        control_acc = 0.5 * (control_acc_0 + control_acc_1); 
 
-        // Model euler-integration
-        Vector3d omg = _gyr_1 - linearized_bg; // or gyr_0?
-        omg = omg * _dt / 2;
-        Quaterniond dR(1, omg(0), omg(1), omg(2));
-        result_delta_q_euler = (delta_q_euler * dR);   
-        //control_acc_0 = delta_q_euler * body_thrust_0; //for euler integ
-        //control_acc = control_acc_0; // euler
+        if (EULER_INTEGRATION)
+        {
+            // Model euler-integration
+            //printf("computing euler control_acc\n");
+            Vector3d un_ang_vel = _gyr_1 - linearized_bg; // or gyr_0?
+            un_ang_vel = un_ang_vel * _dt / 2;
+            Quaterniond dR(1, un_ang_vel(0), un_ang_vel(1), un_ang_vel(2));
+            result_delta_q_euler = delta_q_euler * dR;   
+            control_acc_0 = delta_q_euler * body_thrust_0; //for euler integ
+            control_acc = control_acc_0; // euler
+        }
+        else 
+        {   
+            // Model midpoint-integration
+            control_acc_0 = delta_q * body_thrust_0; 
+            Vector3d control_acc_1 = result_delta_q * body_thrust_1; 
+            control_acc = 0.5 * (control_acc_0 + control_acc_1); 
+        }
+        
 
         //ROS_DEBUG_STREAM_THROTTLE(0.2, "control_acc: "<< control_acc.transpose() << " un_acc: " << un_acc.transpose());
         
+        //printf("model preinteg\n");
         //Model preintegration
         result_delta_p_model = delta_p_model + delta_v_model * _dt + 0.5 * control_acc * _dt * _dt;
         result_delta_v_model = delta_v_model + control_acc * _dt;
@@ -140,6 +154,7 @@ class IntegrationBase
             Vector3d a_0_x = _acc_0 - linearized_ba;
             Vector3d a_1_x = _acc_1 - linearized_ba;
             Matrix3d R_w_x, R_w_x_euler, R_a_0_x, R_a_1_x, R_F_0_x, R_F_1_x;
+
 
             R_w_x<<0, -w_x(2), w_x(1),
                 w_x(2), 0, -w_x(0),
@@ -157,71 +172,84 @@ class IntegrationBase
             R_F_0_x<<0, -body_thrust_0(2), body_thrust_0(1),
                 body_thrust_0(2), 0, -body_thrust_0(0),
                 -body_thrust_0(1), body_thrust_0(0), 0;
-            R_F_1_x<<0, -body_thrust_1(2), body_thrust_1(1),
+
+            if (!EULER_INTEGRATION)
+            {
+                R_F_1_x<<0, -body_thrust_1(2), body_thrust_1(1),
                 body_thrust_1(2), 0, -body_thrust_1(0),
                 -body_thrust_1(1), body_thrust_1(0), 0;
+            }
 
-/*          // euler integration
             MatrixXd F_model = MatrixXd::Zero(12, 12); // delta p,r,v,bw
-            F_model.block<3, 3>(0, 0) = Matrix3d::Identity();
-            F_model.block<3, 3>(0, 3) = -0.5 * delta_q_euler.toRotationMatrix() * R_F_0_x * _dt * _dt;
-            //F_model.block<3, 3>(0, 3) = -0.5 * delta_q.toRotationMatrix() * R_F_0_x * _dt * _dt;
-            F_model.block<3, 3>(0, 6) = MatrixXd::Identity(3,3) * _dt;
-    
-            F_model.block<3, 3>(3, 3) = Matrix3d::Identity() - R_w_x_euler * _dt; // delta_q wrt delta q
-            //F_model.block<3, 3>(3, 3) = Matrix3d::Identity() - R_w_x * _dt; // delta_q wrt delta q
-            F_model.block<3, 3>(3, 9) = -1.0 * MatrixXd::Identity(3,3) * _dt; // delta_q wrt bw
+            MatrixXd V_model;
+            //MatrixXd V_model = MatrixXd::Zero(12,9); //fz0,gyr0, bw
 
-            F_model.block<3, 3>(6, 3) = -1.0 * delta_q_euler.toRotationMatrix() * R_F_0_x * _dt;  // delta v wrt delta q
-            //F_model.block<3, 3>(6, 3) = -1.0 * delta_q.toRotationMatrix() * R_F_0_x * _dt;  // delta v wrt delta q
-            F_model.block<3, 3>(6, 6) = Matrix3d::Identity(); // delta v wrt delta v
-
-            F_model.block<3, 3>(9, 9) = Matrix3d::Identity(); //delta bw wrt delta bw
-*/ 
-
-/*           MatrixXd V_model = MatrixXd::Zero(12,7); //fz0,gyr0, bw
-            //Matrix3d delta_q_2rotmat = delta_q_euler.toRotationMatrix();
-            Matrix3d delta_q_2rotmat = delta_q.toRotationMatrix();
-
-            V_model.block<3, 3>(0, 0) =  0.5 * delta_q_2rotmat * _dt * _dt;  //delta p  wrt Fz_0_noise 
+            if (EULER_INTEGRATION)
+            {   
+                //printf("calc F model and Vmodel\n");
+                // euler integration
+                F_model.block<3, 3>(0, 0) = Matrix3d::Identity();
+                F_model.block<3, 3>(0, 3) = -0.5 * delta_q_euler.toRotationMatrix() * R_F_0_x * _dt * _dt;
+                //F_model.block<3, 3>(0, 3) = -0.5 * delta_q.toRotationMatrix() * R_F_0_x * _dt * _dt;
+                F_model.block<3, 3>(0, 6) = MatrixXd::Identity(3,3) * _dt;
         
-            V_model.block<3, 3>(3, 3) =  MatrixXd::Identity(3,3) * _dt; //delta r  wrt gyr_0_noise
+                F_model.block<3, 3>(3, 3) = Matrix3d::Identity() - R_w_x_euler * _dt; // delta_q wrt delta q
+                //F_model.block<3, 3>(3, 3) = Matrix3d::Identity() - R_w_x * _dt; // delta_q wrt delta q
+                F_model.block<3, 3>(3, 9) = -1.0 * MatrixXd::Identity(3,3) * _dt; // delta_q wrt bw
+
+                F_model.block<3, 3>(6, 3) = -1.0 * delta_q_euler.toRotationMatrix() * R_F_0_x * _dt;  // delta v wrt delta q
+                //F_model.block<3, 3>(6, 3) = -1.0 * delta_q.toRotationMatrix() * R_F_0_x * _dt;  // delta v wrt delta q
+                F_model.block<3, 3>(6, 6) = Matrix3d::Identity(); // delta v wrt delta v
+
+                F_model.block<3, 3>(9, 9) = Matrix3d::Identity(); //delta bw wrt delta bw
+     
+
+                V_model = MatrixXd::Zero(12,9); //fz0,gyr0, bw
+
+                V_model.block<3, 3>(0, 0) =  0.5 * delta_q_euler.toRotationMatrix() * _dt * _dt;  //delta p  wrt Fz_0_noise 
             
-            V_model.block<3, 3>(6, 0) =  delta_q_2rotmat * _dt; //delta v  wrt fz0_noise
+                V_model.block<3, 3>(3, 3) =  MatrixXd::Identity(3,3) * _dt; //delta r  wrt gyr_0_noise
+                
+                V_model.block<3, 3>(6, 0) =  delta_q_euler.toRotationMatrix() * _dt; //delta v  wrt fz0_noise
+                
+                V_model.block<3, 3>(9, 6) = MatrixXd::Identity(3,3) * _dt; //delta bw wrt bw
+
+            }
+            else
+            {
+                //midpoint integration
             
-            V_model.block<3, 3>(9, 6) = MatrixXd::Identity(3,3) * _dt; //delta bw wrt bw*/
-
-            //midpoint integration
-            MatrixXd F_model = MatrixXd::Zero(12, 12); // delta p,r,v,bw
-            F_model.block<3, 3>(0, 0) = Matrix3d::Identity();
-            F_model.block<3, 3>(0, 3) = -0.25 * delta_q.toRotationMatrix() * R_F_0_x * _dt * _dt + 
-                                  -0.25 * result_delta_q.toRotationMatrix() * R_F_1_x * (Matrix3d::Identity() - R_w_x * _dt) * _dt * _dt;
-            F_model.block<3, 3>(0, 6) = MatrixXd::Identity(3,3) * _dt;
-            F_model.block<3, 3>(0, 9) = -0.25 * result_delta_q.toRotationMatrix() * R_F_1_x * _dt * _dt * -_dt;
-            F_model.block<3, 3>(3, 3) = Matrix3d::Identity() - R_w_x * _dt; // delta_q wrt delta q
-            F_model.block<3, 3>(3, 9) = -1.0 * MatrixXd::Identity(3,3) * _dt; // delta_q wrt bw
-            F_model.block<3, 3>(6, 3) = -0.5 * delta_q.toRotationMatrix() * R_F_0_x * _dt +  // delta v wrt delta q
-                                  -0.5 * result_delta_q.toRotationMatrix() * R_F_1_x * (Matrix3d::Identity() - R_w_x * _dt) * _dt;
-            F_model.block<3, 3>(6, 6) = Matrix3d::Identity(); // delta v wrt delta v
-            F_model.block<3, 3>(6, 9) = -0.5 * result_delta_q.toRotationMatrix() * R_F_1_x * _dt * -_dt;
-            F_model.block<3, 3>(9, 9) = Matrix3d::Identity();
+                F_model.block<3, 3>(0, 0) = Matrix3d::Identity();
+                F_model.block<3, 3>(0, 3) = -0.25 * delta_q.toRotationMatrix() * R_F_0_x * _dt * _dt + 
+                                      -0.25 * result_delta_q.toRotationMatrix() * R_F_1_x * (Matrix3d::Identity() - R_w_x * _dt) * _dt * _dt;
+                F_model.block<3, 3>(0, 6) = MatrixXd::Identity(3,3) * _dt;
+                F_model.block<3, 3>(0, 9) = -0.25 * result_delta_q.toRotationMatrix() * R_F_1_x * _dt * _dt * -_dt;
+                F_model.block<3, 3>(3, 3) = Matrix3d::Identity() - R_w_x * _dt; // delta_q wrt delta q
+                F_model.block<3, 3>(3, 9) = -1.0 * MatrixXd::Identity(3,3) * _dt; // delta_q wrt bw
+                F_model.block<3, 3>(6, 3) = -0.5 * delta_q.toRotationMatrix() * R_F_0_x * _dt +  // delta v wrt delta q
+                                      -0.5 * result_delta_q.toRotationMatrix() * R_F_1_x * (Matrix3d::Identity() - R_w_x * _dt) * _dt;
+                F_model.block<3, 3>(6, 6) = Matrix3d::Identity(); // delta v wrt delta v
+                F_model.block<3, 3>(6, 9) = -0.5 * result_delta_q.toRotationMatrix() * R_F_1_x * _dt * -_dt;
+                F_model.block<3, 3>(9, 9) = Matrix3d::Identity();
 
 
-            MatrixXd V_model = MatrixXd::Zero(12,15); //fz0,gyr0,fz1,gyr1,bw
-            Matrix3d delta_q_2rotmat = delta_q.toRotationMatrix();
-            Matrix3d result_delta_q_2rotmat = result_delta_q.toRotationMatrix();
+                V_model = MatrixXd::Zero(12,15); //fz0,gyr0,fz1,gyr1,bw
+                Matrix3d delta_q_2rotmat = delta_q.toRotationMatrix();
+                Matrix3d result_delta_q_2rotmat = result_delta_q.toRotationMatrix();
 
-            V_model.block<3, 3>(0, 0) =  0.25 * delta_q_2rotmat * _dt * _dt;  //delta p  wrt Fz_0_noise 
-            V_model.block<3, 3>(0, 3) =  0.25 * -result_delta_q.toRotationMatrix() * R_F_1_x  * _dt * _dt * 0.5 * _dt; //delta p  wrt gyr_0_noise 
-            V_model.block<3, 3>(0, 6) =  0.25 * result_delta_q_2rotmat* _dt * _dt;  //delta p  wrt Fz_1_noise 
-            V_model.block<3, 3>(0, 9) =  V_model.block<3, 3>(0, 1); //delta p  wrt gyr_1_noise 
-            V_model.block<3, 3>(3, 3) =  0.5 * MatrixXd::Identity(3,3) * _dt; //delta r  wrt gyr_0_noise
-            V_model.block<3, 3>(3, 9) =  0.5 * MatrixXd::Identity(3,3) * _dt; //delta r  wrt gyr_1_noise
-            V_model.block<3, 3>(6, 0) =  0.5 * delta_q_2rotmat * _dt; //delta v  wrt fz0_noise
-            V_model.block<3, 3>(6, 3) =  0.5 * -result_delta_q.toRotationMatrix() * R_F_1_x  * _dt * 0.5 * _dt; //delta v  wrt gyr0_noise
-            V_model.block<3, 3>(6, 6) =  0.5 * result_delta_q_2rotmat * _dt; //delta v  wrt fz1_noise
-            V_model.block<3, 3>(6, 9) =  V_model.block<3, 3>(6, 1); //delta v  wrt gyr1_noise
-            V_model.block<3, 3>(9, 12) = MatrixXd::Identity(3,3) * _dt; //delta bw wrt bw
+                V_model.block<3, 3>(0, 0) =  0.25 * delta_q_2rotmat * _dt * _dt;  //delta p  wrt Fz_0_noise 
+                V_model.block<3, 3>(0, 3) =  0.25 * -result_delta_q.toRotationMatrix() * R_F_1_x  * _dt * _dt * 0.5 * _dt; //delta p  wrt gyr_0_noise 
+                V_model.block<3, 3>(0, 6) =  0.25 * result_delta_q_2rotmat* _dt * _dt;  //delta p  wrt Fz_1_noise 
+                V_model.block<3, 3>(0, 9) =  V_model.block<3, 3>(0, 1); //delta p  wrt gyr_1_noise 
+                V_model.block<3, 3>(3, 3) =  0.5 * MatrixXd::Identity(3,3) * _dt; //delta r  wrt gyr_0_noise
+                V_model.block<3, 3>(3, 9) =  0.5 * MatrixXd::Identity(3,3) * _dt; //delta r  wrt gyr_1_noise
+                V_model.block<3, 3>(6, 0) =  0.5 * delta_q_2rotmat * _dt; //delta v  wrt fz0_noise
+                V_model.block<3, 3>(6, 3) =  0.5 * -result_delta_q.toRotationMatrix() * R_F_1_x  * _dt * 0.5 * _dt; //delta v  wrt gyr0_noise
+                V_model.block<3, 3>(6, 6) =  0.5 * result_delta_q_2rotmat * _dt; //delta v  wrt fz1_noise
+                V_model.block<3, 3>(6, 9) =  V_model.block<3, 3>(6, 1); //delta v  wrt gyr1_noise
+                V_model.block<3, 3>(9, 12) = MatrixXd::Identity(3,3) * _dt; //delta bw wrt bw
+
+            }
 
 
             MatrixXd F = MatrixXd::Zero(15, 15); // delta p,r,v, ba, bw
@@ -255,6 +283,8 @@ class IntegrationBase
             V.block<3, 3>(6, 9) =  V.block<3, 3>(6, 3);
             V.block<3, 3>(9, 12) = MatrixXd::Identity(3,3) * _dt;
             V.block<3, 3>(12, 15) = MatrixXd::Identity(3,3) * _dt;
+
+            //printf("calc covar\n");
 
             step_jacobian = F;
             step_V = V;
@@ -422,8 +452,9 @@ class IntegrationBase
 
     Eigen::Matrix<double, 12, 12> covariance_model;
     Eigen::Matrix<double, 6, 6> covariance_model_pv;
-    //Eigen::Matrix<double, 7, 7> noise_model;
-    Eigen::Matrix<double, 15, 15> noise_model;
+    //Eigen::Matrix<double, 9, 9> noise_model;
+    //Eigen::Matrix<double, 15, 15> noise_model;
+    Eigen::MatrixXd noise_model;
     
 
     double sum_dt;

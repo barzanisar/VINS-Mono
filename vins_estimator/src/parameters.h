@@ -19,6 +19,7 @@ extern Eigen::Matrix3d INERTIA; //not used at the moment
 extern double THRUST_X_Y_N; //prop force std
 extern double THRUST_Z_N; //prop force std
 extern int APPLY_MODEL_PREINTEGRATION;
+extern int EULER_INTEGRATION;
 
 
 //#define UNIT_SPHERE_ERROR

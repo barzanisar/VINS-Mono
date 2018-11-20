@@ -7,23 +7,23 @@ control_topic: "/hummingbird/control_command"
 
 output_path: "/home/barza/barza-vins-out/output"
 rpg_eval_path: "/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop"
-simulation_name: "eight_cY_nF_s" #"/laptop_vins_sim_lowFreqControl"
+simulation_name: "helical_eight_cY_nF_f" #"/laptop_vins_sim_lowFreqControl"
 
 #camera calibration 
 model_type: PINHOLE
 camera_name: camera
-image_width: 320 #752
-image_height: 240 #480 
+image_width: 752  #320
+image_height: 480 # 240
 distortion_parameters:
    k1: 0 #-2.917e-01 , , , 
    k2: 0 #8.228e-02  
    p1: 0 #5.333e-05  
    p2: 0 #-1.578e-04 
 projection_parameters:
-   fx: 171.74818376790037 #4.616e+02  #    458.654 0.000000, , 0.000000, 277.41554761864444, , 0.000000, 0.000000, 1.000000]
-   fy: 171.74818376790037 #4.603e+02 #    457.296
-   cx: 160.5 #3.630e+02 #    367.215
-   cy: 120.5 #2.481e+02 #    248.375
+   fx:  458.646626144965 #vins: 4.616e+02  #    458.654 0.000000, , 0.000000, 277.41554761864444, , 0.000000, 0.000000, 1.000000] old_sim: 171.74818376790037
+   fy:  458.646626144965 #vins:4.603e+02 #    457.296 old_sim: 171.74818376790037
+   cx:  376.5 #vins:3.630e+02 #    367.215 old_sim: 160.5
+   cy:  240.5 #vins: 2.481e+02 #    248.375 old_sim: 120.5
 
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
@@ -47,7 +47,7 @@ extrinsicTranslation: !!opencv-matrix
 
 #feature traker paprameters
 max_cnt: 150            # max feature number in feature tracking
-min_dist: 15 #30            # min distance between two features 
+min_dist: 30 #30            # min distance between two features 
 freq: 10 #10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 1.0        # ransac threshold (pixel)
 show_track: 1           # publish tracking image as topic
@@ -67,9 +67,10 @@ gyr_w: 0.000038785 #       # gyroscope bias random work noise standard deviation
 g_norm: 9.81007     # gravity magnitude
 
 #model parameters       The more accurate parameters you provide, the better performance
-control_thrust_z_n:  0.01            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
+control_thrust_z_n:  0.1            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
 control_thrust_x_y_n: 0.1
-apply_model_preintegration:  0      # set to 1 to apply model preinteg
+apply_model_preintegration:  1      # set to 1 to apply model preinteg
+euler_integration: 0                # for control inputs
 mass: 0.73                       # mass of asctec hummingbird 0.716
 
 #loop closure parameters

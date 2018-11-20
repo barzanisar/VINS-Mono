@@ -3,6 +3,7 @@
 double THRUST_Z_N;
 double THRUST_X_Y_N;
 int APPLY_MODEL_PREINTEGRATION;
+int EULER_INTEGRATION;
 double MASS;
 
 double INIT_DEPTH;
@@ -73,6 +74,11 @@ void readParameters(ros::NodeHandle &n)
         ROS_INFO("APPLY_MODEL_PREINTEGRATION !!!");
     }
 
+    EULER_INTEGRATION = fsSettings["euler_integration"];
+
+    ROS_INFO("euler_integration: %d", EULER_INTEGRATION);
+
+
 
     std::string OUTPUT_PATH;
     fsSettings["output_path"] >> OUTPUT_PATH;
@@ -113,9 +119,15 @@ void readParameters(ros::NodeHandle &n)
     std::cout << "VINS_GT_PATH is opened? " << !fout1 << " "<< fout1.bad() << " "<< fout1.fail()<< std::endl;
     fout1.close();
 
+    std::ofstream fout4("/home/barza/barza-vins-out/output/external_force_gt.csv", std::ios::out);
+    std::cout << "external force matlab path is opened? " << !fout4 << " "<< fout4.bad() << " "<< fout4.fail()<< std::endl;
+    fout4.close();
+
     std::ofstream fout2(RPG_RESULT_EVAL_PATH, std::ios::out);
     std::cout << "RPG_RESULT_EVAL_PATH is opened? " << !fout2 << " "<< fout2.bad() << " "<< fout2.fail()<< std::endl;
     fout2.close();
+
+
 
     std::ofstream fout3(RPG_GT_EVAL_PATH, std::ios::out);
     std::cout << "RPG_GT_EVAL_PATH is opened? " << !fout3 << " "<< fout3.bad() << " "<< fout3.fail()<< std::endl;

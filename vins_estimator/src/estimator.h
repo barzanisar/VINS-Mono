@@ -14,6 +14,7 @@
 #include <nav_msgs/Odometry.h>
 #include <quadrotor_msgs/ControlCommand.h>
 #include <quadrotor_common/control_command.h>
+#include <geometry_msgs/WrenchStamped.h>
 #include <fstream>
 
 #include <ceres/ceres.h>
@@ -37,7 +38,7 @@ class Estimator
     void setParameter();
 
     // interface
-    void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity, double Fz, const Vector3d &torque, const std_msgs::Header &imgheader);
+    void processIMU(double t, const Vector3d &linear_acceleration, const Vector3d &angular_velocity, double Fz, const std_msgs::Header &imgheader);
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header);
     void setReloFrame(double _frame_stamp, int _frame_index, vector<Vector3d> &_match_points, Vector3d _relo_t, Matrix3d _relo_r);
     //void processControl(double dt_btw_this_and_prev_control, double Fz);
@@ -91,7 +92,7 @@ class Estimator
     std_msgs::Header Headers[(WINDOW_SIZE + 1)];
 
     IntegrationBase *pre_integrations[(WINDOW_SIZE + 1)]; // 11 preinteg factors?
-    Vector3d acc_0, gyr_0, torque_0;
+    Vector3d acc_0, gyr_0;
     double Fz_0; 
 
 
@@ -100,8 +101,7 @@ class Estimator
     vector<Vector3d> linear_acceleration_buf[(WINDOW_SIZE + 1)]; // acc at frames
     vector<Vector3d> angular_velocity_buf[(WINDOW_SIZE + 1)]; // ang vel at frames
     vector<double> Fz_buf[(WINDOW_SIZE + 1)];
-    vector<Vector3d> torque_buf[(WINDOW_SIZE + 1)];
-
+   
     int frame_count;
     int sum_of_outlier, sum_of_back, sum_of_front, sum_of_invalid;
 
