@@ -66,7 +66,8 @@ class IntegrationBase
     }
 
     void repropagate(const Eigen::Vector3d &_linearized_ba, const Eigen::Vector3d &_linearized_bg)
-    {
+    {   
+        printf("repropagate imu and model measurements bcz bias estimate has changed alot!!! \n");
         sum_dt = 0.0;
         acc_0 = linearized_acc;
         gyr_0 = linearized_gyr;
@@ -128,6 +129,7 @@ class IntegrationBase
             Quaterniond dR(1, un_ang_vel(0), un_ang_vel(1), un_ang_vel(2));
             result_delta_q_euler = delta_q_euler * dR;   
             control_acc_0 = delta_q_euler * body_thrust_0; //for euler integ
+            //control_acc_0 = delta_q * body_thrust_0; //for euler integ
             control_acc = control_acc_0; // euler
         }
         else 
@@ -191,14 +193,17 @@ class IntegrationBase
                 F_model.block<3, 3>(0, 0) = Matrix3d::Identity();
                 F_model.block<3, 3>(0, 3) = -0.5 * delta_q_euler.toRotationMatrix() * R_F_0_x * _dt * _dt;
                 //F_model.block<3, 3>(0, 3) = -0.5 * delta_q.toRotationMatrix() * R_F_0_x * _dt * _dt;
+                
                 F_model.block<3, 3>(0, 6) = MatrixXd::Identity(3,3) * _dt;
         
                 F_model.block<3, 3>(3, 3) = Matrix3d::Identity() - R_w_x_euler * _dt; // delta_q wrt delta q
                 //F_model.block<3, 3>(3, 3) = Matrix3d::Identity() - R_w_x * _dt; // delta_q wrt delta q
+                
                 F_model.block<3, 3>(3, 9) = -1.0 * MatrixXd::Identity(3,3) * _dt; // delta_q wrt bw
 
                 F_model.block<3, 3>(6, 3) = -1.0 * delta_q_euler.toRotationMatrix() * R_F_0_x * _dt;  // delta v wrt delta q
                 //F_model.block<3, 3>(6, 3) = -1.0 * delta_q.toRotationMatrix() * R_F_0_x * _dt;  // delta v wrt delta q
+                
                 F_model.block<3, 3>(6, 6) = Matrix3d::Identity(); // delta v wrt delta v
 
                 F_model.block<3, 3>(9, 9) = Matrix3d::Identity(); //delta bw wrt delta bw
@@ -206,11 +211,13 @@ class IntegrationBase
 
                 V_model = MatrixXd::Zero(12,9); //fz0,gyr0, bw
 
-                V_model.block<3, 3>(0, 0) =  0.5 * delta_q_euler.toRotationMatrix() * _dt * _dt;  //delta p  wrt Fz_0_noise 
+                V_model.block<3, 3>(0, 0) =  0.5 * delta_q_euler.toRotationMatrix() * _dt * _dt;  //delta p  wrt Fz_0_noise
+                //V_model.block<3, 3>(0, 0) =  0.5 * delta_q.toRotationMatrix() * _dt * _dt;  //delta p  wrt Fz_0_noise 
             
                 V_model.block<3, 3>(3, 3) =  MatrixXd::Identity(3,3) * _dt; //delta r  wrt gyr_0_noise
                 
                 V_model.block<3, 3>(6, 0) =  delta_q_euler.toRotationMatrix() * _dt; //delta v  wrt fz0_noise
+                //V_model.block<3, 3>(6, 0) =  delta_q.toRotationMatrix() * _dt; //delta v  wrt fz0_noise
                 
                 V_model.block<3, 3>(9, 6) = MatrixXd::Identity(3,3) * _dt; //delta bw wrt bw
 

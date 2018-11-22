@@ -64,6 +64,8 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
 
         Eigen::Matrix<double, 15, 15> sqrt_info = Eigen::LLT<Eigen::Matrix<double, 15, 15>>(pre_integration->covariance.inverse()).matrixL().transpose();
         //sqrt_info.setIdentity();
+        
+        ROS_DEBUG_STREAM_ONCE("IMU residual before:" << residual);
 
         residual = sqrt_info * residual;
 /*      ROS_INFO_STREAM_ONCE("IMU sqrt_info :" << sqrt_info);
@@ -71,7 +73,8 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
         ROS_INFO_STREAM_ONCE("IMU covariance : ") ;
         ROS_INFO_STREAM_ONCE(pre_integration->covariance);
 
-        ROS_DEBUG_STREAM_ONCE("IMU residual after:" << residual);*/
+        */
+        ROS_DEBUG_STREAM_ONCE("IMU residual after:" << residual);
 
         if (jacobians)
         {

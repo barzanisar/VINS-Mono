@@ -572,12 +572,17 @@ void Estimator::vector2double(bool print_debug) // put estimates or initial gues
 
         para_Fext[i][0] = Fexts[i].x();
         para_Fext[i][1] = Fexts[i].y();
-        para_Fext[i][2] = Fexts[i].z();
-
-        if (print_debug)
-            ROS_DEBUG_STREAM("frame: "<< i <<" para_Fext_initial: "<<Fexts[i].transpose());
+        para_Fext[i][2] = Fexts[i].z();  
         
     }
+
+    if (print_debug)
+    {
+        //ROS_DEBUG_STREAM("frame: "<< i <<" para_Fext_initial: "<<Fexts[i].transpose());
+        ROS_DEBUG_STREAM(" para_position_initial: "<<Ps[WINDOW_SIZE].transpose());
+        ROS_DEBUG_STREAM(" para_bias_accel_initial: "<<Bas[WINDOW_SIZE].transpose());
+    }  
+
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
         para_Ex_Position[i][0] = tic[i].x();
@@ -629,9 +634,9 @@ void Estimator::double2vector()
 
         Rs[i] = rot_diff * Quaterniond(para_Attitude[i][3], para_Attitude[i][0], para_Attitude[i][1], para_Attitude[i][2]).normalized().toRotationMatrix();
         
-        ROS_INFO_STREAM_ONCE("Initial R_wb0: " << Rs[0]);
-        ROS_INFO_STREAM_ONCE("Initial R_wb1: " << Rs[1]);
-        ROS_INFO_STREAM_ONCE("Initial R_wb_window_size: " << Rs[WINDOW_SIZE]);
+        //ROS_INFO_STREAM_ONCE("Initial R_wb0: " << Rs[0]);
+        //ROS_INFO_STREAM_ONCE("Initial R_wb1: " << Rs[1]);
+        //ROS_INFO_STREAM_ONCE("Initial R_wb_window_size: " << Rs[WINDOW_SIZE]);
 
         Ps[i] = rot_diff * Vector3d(para_Position[i][0] - para_Position[0][0],
                                 para_Position[i][1] - para_Position[0][1],
@@ -655,8 +660,11 @@ void Estimator::double2vector()
         if (i == WINDOW_SIZE)
             Fexts[WINDOW_SIZE] = Fexts[WINDOW_SIZE-1];
         
-        ROS_DEBUG_STREAM("frame: "<< i <<" para_Fext_estimated: "<<Fexts[i].transpose());
+        //ROS_DEBUG_STREAM("frame: "<< i <<" para_Fext_estimated: "<<Fexts[i].transpose());
     }
+
+    ROS_DEBUG_STREAM("position_estimate: "<<Ps[WINDOW_SIZE].transpose());
+    ROS_DEBUG_STREAM("bias_accel_estimate: "<<Bas[WINDOW_SIZE].transpose());
 
     for (int i = 0; i < NUM_OF_CAM; i++)
     {

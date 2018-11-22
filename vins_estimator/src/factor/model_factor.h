@@ -139,7 +139,7 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
         //ROS_INFO_STREAM_ONCE("Model sqrt_info :" << sqrt_info_old);
         //ROS_INFO_STREAM_ONCE("Model new sqrt_info :" << sqrt_info);
 
-        //ROS_DEBUG_STREAM_ONCE("Model residual before:" << residual);
+        ROS_DEBUG_STREAM_ONCE("Model residual before:" << residual);
 
         residual = sqrt_info * residual;
 
@@ -191,7 +191,7 @@ class ModelFactor : public ceres::SizedCostFunction<6, 3, 4, 3, 3, 3, 3> //posit
                     //std::cout << sqrt_info << std::endl;
                     //ROS_BREAK();
                 }
-                ROS_DEBUG_STREAM("Fexti: "<< Fexti.transpose());
+                //ROS_DEBUG_STREAM("Fexti: "<< Fexti.transpose());
                 ROS_DEBUG_STREAM_ONCE("Model jacobian_attitude_i after:" << jacobian_attitude_i);
             }
             if (jacobians[2])// derivative of residual wrt parameter block i.e. 3D speed i
