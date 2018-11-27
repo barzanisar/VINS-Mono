@@ -63,12 +63,12 @@ keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
 acc_n:  0.08 #08 #0.004          # accelerometer measurement noise standard deviation. #0.2   0.04      0.002 #
 gyr_n:  0.004 # v  0.0003394       # gyroscope measurement noise standard deviation.     #0.05   1.6968e-04  #
 acc_w:  0.00004 # v   0.006      # accelerometer bias random work noise standard deviation.  #0.02  0.003 #
-gyr_w:  0.000038785 #  v   2.0e-6   # gyroscope bias random work noise standard deviation.     #4.0e-5  1.9393e-05 # 
+gyr_w:  0.000038785 #  v   2.0e-6  0.000038785  # gyroscope bias random work noise standard deviation.     #4.0e-5  1.9393e-05 # 
 g_norm: 9.81007     # gravity magnitude
 
 #model parameters       The more accurate parameters you provide, the better performance
-control_thrust_z_n: 0.08 #0.02 (rmse 0.92) #0.08 vs 0.01            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
-control_thrust_x_y_n: 0.08 #0.08 (rmse 0.92) #0.08 better (rmse 0.09)vs 0.03 (rmse 0.1)
+control_thrust_z_n: 0.05 #0.02 (rmse 0.92) #0.08 vs 0.01            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
+control_thrust_x_y_n: 0.05 #0.08 (rmse 0.92) #0.08 better (rmse 0.09)vs 0.03 (rmse 0.1)
 apply_model_preintegration:  1      # set to 1 to apply model preinteg
 euler_integration: 0                # for control inputs
 mass: 0.73                       # mass of asctec hummingbird 0.716
