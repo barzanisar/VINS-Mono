@@ -382,8 +382,8 @@ class IntegrationBase
         residuals.block<3, 1>(O_BA, 0) = Baj - Bai;
         residuals.block<3, 1>(O_BG, 0) = Bgj - Bgi;
 
-        Eigen::Matrix<double, 3, 1> tmp_v_imu_delta = Qi.inverse() * (G * sum_dt + Vj - Vi);
-        Eigen::Matrix<double, 3, 1> tmp_p_imu_delta = Qi.inverse() * (0.5 * G * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt);
+        //Eigen::Matrix<double, 3, 1> tmp_v_imu_delta = Qi.inverse() * (G * sum_dt + Vj - Vi);
+        //Eigen::Matrix<double, 3, 1> tmp_p_imu_delta = Qi.inverse() * (0.5 * G * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt);
 
 
         //std::cout << "IMU residual before: corrected delta_p: " << corrected_delta_p.transpose() << std::endl;
