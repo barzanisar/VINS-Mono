@@ -657,8 +657,8 @@ void Estimator::double2vector()
         Fexts[i] = Vector3d(para_Fext[i][0],
                             para_Fext[i][1],
                             para_Fext[i][2]);
-        if (i == WINDOW_SIZE)
-            Fexts[WINDOW_SIZE] = Fexts[WINDOW_SIZE-1];
+        //if (i == WINDOW_SIZE)
+        //    Fexts[WINDOW_SIZE] = Fexts[WINDOW_SIZE-1];
         
         //ROS_DEBUG_STREAM("frame: "<< i <<" para_Fext_estimated: "<<Fexts[i].transpose());
     }
@@ -775,7 +775,7 @@ void Estimator::optimization()
         problem.AddParameterBlock(para_Attitude[i], SIZE_ATTITUDE, local_parameterization);
         problem.AddParameterBlock(para_Speed[i], SIZE_SPEED);
         problem.AddParameterBlock(para_Bias[i], SIZE_BIAS);
-        if (i!=WINDOW_SIZE && APPLY_MODEL_PREINTEGRATION)
+        if (APPLY_MODEL_PREINTEGRATION)
             problem.AddParameterBlock(para_Fext[i], SIZE_FORCES);
     }
     for (int i = 0; i < NUM_OF_CAM; i++)
@@ -800,8 +800,8 @@ void Estimator::optimization()
 
     TicToc t_whole, t_prepare;
 
-    Fexts[WINDOW_SIZE-1].setZero();
-    Fexts[WINDOW_SIZE].setZero();
+    //Fexts[WINDOW_SIZE-1].setZero();
+    //Fexts[WINDOW_SIZE].setZero();
     vector2double(true); // set initial guess to optimization parameters
     
 
@@ -827,7 +827,7 @@ void Estimator::optimization()
         {
             ModelFactor* model_factor = new ModelFactor(pre_integrations[j]); // starts with preinteg[1] and para_pose 0,1 and ends adding preinteg[10]
             //ceres::CostFunction* model_factor = ModelFactor::Create(pre_integrations[j]);
-            problem.AddResidualBlock(model_factor, NULL, para_Position[i], para_Attitude[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]); //we want model_factor, NULL, para_Pose[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]   
+            problem.AddResidualBlock(model_factor, NULL, para_Position[i], para_Attitude[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j], para_Fext[j]); //we want model_factor, NULL, para_Pose[i], para_Speed[i], para_Fext[i], para_Position[j], para_Speed[j]   
         } 
           
     }
@@ -989,7 +989,7 @@ void Estimator::optimization()
                     //ceres::CostFunction* model_factor = ModelFactor::Create(pre_integrations[1]);
      
                     ResidualBlockInfo *residual_block_info = new ResidualBlockInfo(model_factor, NULL,
-                                                                               vector<double *>{para_Position[0], para_Attitude[0], para_Speed[0], para_Fext[0], para_Position[1], para_Speed[1]},
+                                                                               vector<double *>{para_Position[0], para_Attitude[0], para_Speed[0], para_Fext[0], para_Position[1], para_Speed[1], para_Fext[1]},
                                                                                vector<int>{0, 1, 2, 3}); // {0, 1, 2, 3} index of parameter blocks to drop, i.e. drop para_Pose[0], para_SpeedBias[0], para_Fext[0]
                     marginalization_info->addResidualBlockInfo(residual_block_info);
                 }
@@ -1056,7 +1056,7 @@ void Estimator::optimization()
             addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i - 1];
             addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i - 1];
             addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i - 1];
-            if (i!=WINDOW_SIZE && APPLY_MODEL_PREINTEGRATION)
+            if (APPLY_MODEL_PREINTEGRATION)
                 addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
         }
         for (int i = 0; i < NUM_OF_CAM; i++)
@@ -1127,6 +1127,8 @@ void Estimator::optimization()
                     addr_shift[reinterpret_cast<long>(para_Attitude[i])] = para_Attitude[i - 1];
                     addr_shift[reinterpret_cast<long>(para_Speed[i])] = para_Speed[i - 1];
                     addr_shift[reinterpret_cast<long>(para_Bias[i])] = para_Bias[i - 1];
+                    if (APPLY_MODEL_PREINTEGRATION)
+                        addr_shift[reinterpret_cast<long>(para_Fext[i])] = para_Fext[i - 1];
                 }
                 else
                 {

@@ -2,6 +2,7 @@
 
 double THRUST_Z_N;
 double THRUST_X_Y_N;
+double F_EXT_W;
 int APPLY_MODEL_PREINTEGRATION;
 int EULER_INTEGRATION;
 double MASS;
@@ -142,6 +143,7 @@ void readParameters(ros::NodeHandle &n)
 
     THRUST_Z_N = fsSettings["control_thrust_z_n"];
     THRUST_X_Y_N = fsSettings["control_thrust_x_y_n"];
+    F_EXT_W = fsSettings["fext_w"]; 
     MASS = fsSettings["mass"];
     ROS_INFO("THRUST_Z_N: %f THRUST_X_Y_N: %f MASS: %f ", THRUST_Z_N, THRUST_X_Y_N, MASS);
 

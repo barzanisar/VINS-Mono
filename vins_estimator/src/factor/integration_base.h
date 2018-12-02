@@ -16,7 +16,7 @@ class IntegrationBase
           linearized_ba{_linearized_ba}, linearized_bg{_linearized_bg},
             jacobian{Eigen::Matrix<double, 15, 15>::Identity()}, covariance{Eigen::Matrix<double, 15, 15>::Zero()},
           sum_dt{0.0}, delta_p{Eigen::Vector3d::Zero()}, delta_q{Eigen::Quaterniond::Identity()}, delta_v{Eigen::Vector3d::Zero()},
-          Fz_0{_Fz_0}, linearized_Fz{_Fz_0}, covariance_model{Eigen::Matrix<double, 12, 12>::Zero()},
+          Fz_0{_Fz_0}, linearized_Fz{_Fz_0}, covariance_model{Eigen::Matrix<double, 15, 15>::Zero()},
           delta_p_model{Eigen::Vector3d::Zero()}, delta_v_model{Eigen::Vector3d::Zero()}, delta_q_euler{Eigen::Quaterniond::Identity()}
 
 
@@ -42,7 +42,7 @@ class IntegrationBase
         else
         {
                 // for midpoint integration - makes sense when we use motor speeds instead of control commands
-            noise_model =  Eigen::Matrix<double, 15, 15>::Zero(); //matrix Q_model
+            noise_model =  Eigen::Matrix<double, 18, 18>::Zero(); //matrix Q_model
             noise_model(0, 0) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fx_0 sq
             noise_model(1, 1) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fy_0 sq
             noise_model(2, 2) = THRUST_Z_N * THRUST_Z_N; // sigma_Fz_0 sq
@@ -52,6 +52,8 @@ class IntegrationBase
             noise_model(8, 8) = THRUST_Z_N * THRUST_Z_N; // sigma_Fz_1 sq
             noise_model.block<3, 3>(9, 9) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity(); // sigma_gyr_1 sq
             noise_model.block<3, 3>(12, 12) =  (GYR_W * GYR_W) * Eigen::Matrix3d::Identity(); // sigma_bw_ sq
+            noise_model.block<3, 3>(15, 15) =  (F_EXT_W * F_EXT_W) * Eigen::Matrix3d::Identity(); // sigma_fext_ sq
+
         }
 
     }
@@ -182,7 +184,7 @@ class IntegrationBase
                 -body_thrust_1(1), body_thrust_1(0), 0;
             }
 
-            MatrixXd F_model = MatrixXd::Zero(12, 12); // delta p,r,v,bw
+            MatrixXd F_model = MatrixXd::Zero(15, 15); // delta p,r,v,bw, fext
             MatrixXd V_model;
             //MatrixXd V_model = MatrixXd::Zero(12,9); //fz0,gyr0, bw
 
@@ -238,9 +240,10 @@ class IntegrationBase
                 F_model.block<3, 3>(6, 6) = Matrix3d::Identity(); // delta v wrt delta v
                 F_model.block<3, 3>(6, 9) = -0.5 * result_delta_q.toRotationMatrix() * R_F_1_x * _dt * -_dt;
                 F_model.block<3, 3>(9, 9) = Matrix3d::Identity();
+                F_model.block<3, 3>(12, 12) = Matrix3d::Identity();
 
 
-                V_model = MatrixXd::Zero(12,15); //fz0,gyr0,fz1,gyr1,bw
+                V_model = MatrixXd::Zero(15,18); //fz0,gyr0,fz1,gyr1,bw,fext
                 Matrix3d delta_q_2rotmat = delta_q.toRotationMatrix();
                 Matrix3d result_delta_q_2rotmat = result_delta_q.toRotationMatrix();
 
@@ -255,6 +258,7 @@ class IntegrationBase
                 V_model.block<3, 3>(6, 6) =  0.5 * result_delta_q_2rotmat * _dt; //delta v  wrt fz1_noise
                 V_model.block<3, 3>(6, 9) =  V_model.block<3, 3>(6, 1); //delta v  wrt gyr1_noise
                 V_model.block<3, 3>(9, 12) = MatrixXd::Identity(3,3) * _dt; //delta bw wrt bw
+                V_model.block<3, 3>(12, 15) = MatrixXd::Identity(3,3) * _dt; //delta fext wrt fext
 
             }
 
@@ -299,12 +303,13 @@ class IntegrationBase
             covariance = F * covariance * F.transpose() + V * noise * V.transpose();
             covariance_model = F_model * covariance_model * F_model.transpose() + V_model * noise_model * V_model.transpose();
             
-            covariance_model_pv.setIdentity();
+            covariance_model_pvf.setIdentity();
            
-            covariance_model_pv.block<3,3>(0,0) = covariance_model.block<3,3>(O_P,O_P);
-            covariance_model_pv.block<3,3>(0,3) = covariance_model.block<3,3>(O_P,O_V);
-            covariance_model_pv.block<3,3>(3,0) = covariance_model.block<3,3>(O_V,O_P);
-            covariance_model_pv.block<3,3>(3,3) = covariance_model.block<3,3>(O_V,O_V);
+            covariance_model_pvf.block<3,3>(0,0) = covariance_model.block<3,3>(O_P,O_P);
+            covariance_model_pvf.block<3,3>(0,3) = covariance_model.block<3,3>(O_P,O_V);
+            covariance_model_pvf.block<3,3>(3,0) = covariance_model.block<3,3>(O_V,O_P);
+            covariance_model_pvf.block<3,3>(3,3) = covariance_model.block<3,3>(O_V,O_V);
+            covariance_model_pvf.block<3,3>(6,6) = covariance_model.block<3,3>(12,12);
         
 
         }
@@ -408,10 +413,10 @@ class IntegrationBase
         return residuals;
     }
 
-    Eigen::Matrix<double, 6, 1> evaluate_model(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi, const Eigen::Vector3d &Fexti,
-                                          const Eigen::Vector3d &Pj, const Eigen::Vector3d &Vj) const
+    Eigen::Matrix<double, 9, 1> evaluate_model(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi, const Eigen::Vector3d &Fexti,
+                                          const Eigen::Vector3d &Pj, const Eigen::Vector3d &Vj, const Eigen::Vector3d &Fextj) const
     {
-        Eigen::Matrix<double, 6, 1> residuals_model;
+        Eigen::Matrix<double, 9, 1> residuals_model;
         // we can also do attitude runge kutta integration here
 
         //residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * (G - Fexti / MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - delta_p_model;
@@ -419,6 +424,9 @@ class IntegrationBase
         residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * G  * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - 0.5 * Fexti * sum_dt * sum_dt - delta_p_model;
         
         residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * (G  * sum_dt + Vj - Vi) - Fexti * sum_dt  - delta_v_model;
+        
+        residuals_model.block<3, 1>(6, 0) =  Fextj - Fexti;
+
         //residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * ((G - Fexti) * sum_dt + Vj - Vi) - delta_v_model;
         //residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * ((G - Fexti / MASS) * sum_dt + Vj - Vi) - delta_v_model;
 
@@ -457,8 +465,8 @@ class IntegrationBase
     Eigen::Matrix<double, 15, 18> step_V;
     Eigen::Matrix<double, 18, 18> noise;
 
-    Eigen::Matrix<double, 12, 12> covariance_model;
-    Eigen::Matrix<double, 6, 6> covariance_model_pv;
+    Eigen::Matrix<double, 15, 15> covariance_model;
+    Eigen::Matrix<double, 9, 9> covariance_model_pvf;
     //Eigen::Matrix<double, 9, 9> noise_model;
     //Eigen::Matrix<double, 15, 15> noise_model;
     Eigen::MatrixXd noise_model;
