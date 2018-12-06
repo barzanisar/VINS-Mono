@@ -44,6 +44,8 @@ extern std::string VINS_RESULT_PATH;
 extern std::string RPG_RESULT_EVAL_PATH;
 extern std::string VINS_GT_PATH;
 extern std::string RPG_GT_EVAL_PATH;
+extern std::string EXT_F_GT_PATH;
+extern std::string PREINTEG_PATH;
 
 extern std::string IMU_TOPIC;
 extern std::string CONTROL_TOPIC;

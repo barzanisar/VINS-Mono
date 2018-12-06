@@ -280,17 +280,20 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
         return;
     }
     ROS_INFO_STREAM_ONCE("First image_msg_stamp_sec: " << feature_msg->header.stamp.toSec());
-    //if (count_debug < 1000 || count_debug > 1030)
-    //{
+ //   if (count_debug < 900 || count_debug > 930)
+//    {
         m_buf.lock();
         feature_buf.push(feature_msg); //one frame msg
         m_buf.unlock();
         con.notify_one();
-    //}
-    //else
-    //{
+//    }
+//    else
+//    {
+//        ROS_WARN_STREAM("Dropping image! with timestamp: " << feature_msg->header.stamp.toSec());
+//    }
+    //if (count_debug >= 900 && count_debug <= 930)
     //    ROS_WARN_STREAM("Dropping image! with timestamp: " << feature_msg->header.stamp.toSec());
-    //}
+
     count_debug ++;
 }
 
@@ -374,7 +377,9 @@ void groundtruth_callback(const nav_msgs::OdometryConstPtr &gt_msg)
 void external_force_sensor_callback(const geometry_msgs::WrenchStampedConstPtr &fext_msg)
 {
     // write ground truth for external forces to file
-        ofstream foutC("/home/barza/barza-vins-out/output/external_force_gt.csv", ios::app);
+    if (APPLY_MODEL_PREINTEGRATION)
+    {
+        ofstream foutC(EXT_F_GT_PATH, ios::app);
         foutC.setf(ios::fixed, ios::floatfield);
         foutC.precision(0);
         foutC << fext_msg->header.stamp.toSec() * 1e9 << ",";
@@ -383,6 +388,8 @@ void external_force_sensor_callback(const geometry_msgs::WrenchStampedConstPtr &
               << fext_msg->wrench.force.y << ","
               << fext_msg->wrench.force.z << endl;
         foutC.close();
+    }
+        
 }
 
 // thread: visual-inertial odometry
@@ -539,15 +546,14 @@ void VIO_MODEL_process()
                 Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
                 xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
 
-                //if (img_msg->header.stamp.toSec() < 361.724 || img_msg->header.stamp.toSec() > 368)//(count_debug < 1000 || count_debug > 1030)
+                if (img_msg->header.stamp.toSec() < 131.202 || img_msg->header.stamp.toSec() > 134.073)//(count_debug < 1000 || count_debug > 1030)
                     image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
-                //else
-                //{   
-                    
-                //    ROS_INFO_STREAM_ONCE("start losing features with img stamp " << img_msg->header.stamp.toSec() << "count " << count_debug);
-                    //    if (i%2 == 0)
-                //        image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
-                //}
+                else
+                {   
+                    ROS_INFO_STREAM_ONCE("start losing features with img stamp " << img_msg->header.stamp.toSec() << "count " << count_debug);
+                    if (i%2 == 0)
+                        image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
+                }
 
             }
             estimator.processImage(image, img_msg->header);
