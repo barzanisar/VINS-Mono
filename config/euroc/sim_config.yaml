@@ -7,7 +7,7 @@ control_topic: "/hummingbird/control_command"
 
 output_path: "/home/barza/barza-vins-out/output/"
 rpg_eval_path: "/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop"
-simulation_name: "helical_eight_fY_2F_1ms_tmp" #"/laptop_vins_sim_lowFreqControl" helical_eight_fY_2F_1ms
+simulation_name: "random_fY_2F_1ms" #"/laptop_vins_sim_lowFreqControl" helical_eight_fY_2F_1ms
 
 #camera calibration 
 model_type: PINHOLE
@@ -70,6 +70,7 @@ g_norm: 9.81007     # gravity magnitude
 control_thrust_z_n: 0.1 #0.08             # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
 control_thrust_x_y_n: 0.03 #0.03 (rmse 0.92) #0.08 better (rmse 0.09)vs 0.03 (rmse 0.1)
 fext_w: 1.5 #fext random walk std dev
+fext_norm_weight: 150 #weight scale for fextT W fext 
 apply_model_preintegration:  1      # set to 1 to apply model preinteg
 euler_integration: 0                # for control inputs
 mass: 0.73                       # mass of asctec hummingbird 0.716

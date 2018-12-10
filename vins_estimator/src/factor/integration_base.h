@@ -413,10 +413,10 @@ class IntegrationBase
         return residuals;
     }
 
-    Eigen::Matrix<double, 9, 1> evaluate_model(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi, const Eigen::Vector3d &Fexti,
+    Eigen::Matrix<double, 12, 1> evaluate_model(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi, const Eigen::Vector3d &Fexti,
                                           const Eigen::Vector3d &Pj, const Eigen::Vector3d &Vj, const Eigen::Vector3d &Fextj) const
     {
-        Eigen::Matrix<double, 9, 1> residuals_model;
+        Eigen::Matrix<double, 12, 1> residuals_model;
         // we can also do attitude runge kutta integration here
 
         //residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * (G - Fexti / MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - delta_p_model;
@@ -426,6 +426,7 @@ class IntegrationBase
         residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * (G  * sum_dt + Vj - Vi) - Fexti * sum_dt  - delta_v_model;
         
         residuals_model.block<3, 1>(6, 0) =  Fextj - Fexti;
+        residuals_model.block<3, 1>(9, 0) =  Fexti;
 
         //residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * ((G - Fexti) * sum_dt + Vj - Vi) - delta_v_model;
         //residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * ((G - Fexti / MASS) * sum_dt + Vj - Vi) - delta_v_model;

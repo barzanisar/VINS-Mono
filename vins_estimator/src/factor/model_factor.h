@@ -9,7 +9,7 @@
 
 #include <ceres/ceres.h>
 
-class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //position i, attitude i,  speed i, fext i, position j, speed j, fext j
+class ModelFactor : public ceres::SizedCostFunction<12, 3, 4, 3, 3, 3, 3, 3> //position i, attitude i,  speed i, fext i, position j, speed j, fext j
 {
   public:
     ModelFactor() = delete;
@@ -33,16 +33,16 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
         Eigen::Vector3d Fextj(parameters[6][0], parameters[6][1], parameters[6][2]);
 
 
-        Eigen::Map<Eigen::Matrix<double, 9, 1>> residual(residuals);
+        Eigen::Map<Eigen::Matrix<double, 12, 1>> residual(residuals);
         residual = pre_integration->evaluate_model(Pi, Qi, Vi, Fexti,
                                             Pj, Vj, Fextj);
-        Eigen::Matrix<double, 9, 1> residual_before = residual;
+        Eigen::Matrix<double, 12, 1> residual_before = residual;
 
 
         //Eigen::Matrix<double, 12, 12> sqrt_info_full = Eigen::LLT<Eigen::Matrix<double, 12, 12>>(pre_integration->covariance_model.inverse()).matrixL().transpose();
         //Eigen::Matrix<double, 9, 9> sqrt_info_full = Eigen::LLT<Eigen::Matrix<double, 9, 9>>(pre_integration->covariance_model.inverse()).matrixL().transpose();
         
-        Eigen::Matrix<double, 9, 9> sqrt_info; // for just p and v
+        Eigen::Matrix<double, 12, 12> sqrt_info; // for just p and v
 /*        sqrt_info.setIdentity();
         sqrt_info.block<3,3>(0,0) = sqrt_info_full.block<3,3>(O_P,O_P);
         sqrt_info.block<3,3>(0,3) = sqrt_info_full.block<3,3>(O_P,O_V);
@@ -54,20 +54,19 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
 
         //sqrt_info.block<3,3>(0,0) = tmp_sqrt_info_pv.block<3,3>(0,0);
         //sqrt_info.block<3,3>(3,3) = tmp_sqrt_info_pv.block<3,3>(3,3);
-        Eigen::Matrix<double, 9, 9> tmp_big_covar;
+        Eigen::Matrix<double, 12, 12> tmp_big_covar; //this is actually the weight matrix
         tmp_big_covar.setZero();
         tmp_big_covar.block<6, 6>(0,0) = pre_integration->covariance_model_pv.inverse();// + 1e-11 * Eigen::MatrixXd::Identity(6,6);
         //Eigen::Matrix<double, 6, 6> tmp_pv_covar = tmp_big_covar.block<6,6>(0,0);
         //tmp_big_covar.block<6, 6>(0,0) = tmp_pv_covar.inverse();
         tmp_big_covar.block<3, 3>(6,6) = 1.0 / (pre_integration->sum_dt * pre_integration->sum_dt * F_EXT_W * F_EXT_W )* Eigen::Matrix3d::Identity();
         //tmp_big_covar.block<3, 3>(6,6) = pre_integration->sum_dt * pre_integration->sum_dt * F_EXT_W * F_EXT_W * Eigen::Matrix3d::Identity();
-
-        //Eigen::Matrix<double, 6, 6> inv_small_covar =  inv_big_covar * 1e-2 ;
-
         
+        tmp_big_covar.block<3, 3>(9,9) = F_EXT_NORM_WEIGHT * Eigen::Matrix3d::Identity();
+
         //Eigen::Matrix<double, 6, 6> sqrt_info_old = Eigen::LLT<Eigen::Matrix<double, 6, 6>>(pre_integration->covariance_model_pv.inverse()).matrixL().transpose();
         //Eigen::Matrix<double, 6, 6> sqrt_info_new = Eigen::LLT<Eigen::Matrix<double, 6, 6>>(inv_small_covar).matrixL().transpose();
-        sqrt_info = Eigen::LLT<Eigen::Matrix<double, 9, 9>>(tmp_big_covar).matrixL().transpose();
+        sqrt_info = Eigen::LLT<Eigen::Matrix<double, 12, 12>>(tmp_big_covar).matrixL().transpose();
 
         //Eigen::Matrix<double, 6, 6> L= Eigen::LLT<Eigen::Matrix<double, 6, 6>>(pre_integration->covariance_model_pv.inverse()).matrixL();
 
@@ -75,7 +74,7 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
         
         ROS_INFO_STREAM_ONCE("Model sqrt_info : ");
         ROS_INFO_STREAM_ONCE(sqrt_info);
-        ROS_INFO_STREAM_ONCE("Model covariance_model inverse : ") ;
+        ROS_INFO_STREAM_ONCE("Model covariance_model inverse i.e. weight or info : ") ;
         ROS_INFO_STREAM_ONCE(tmp_big_covar);
 
         //ROS_INFO_STREAM_ONCE("Model covariance_model + Identity: ") ;
@@ -104,7 +103,7 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
 
             if (jacobians[0]) // derivative of residual wrt the first parameter block i.e. 3D position_i
             {
-                Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor>> jacobian_position_i(jacobians[0]);
+                Eigen::Map<Eigen::Matrix<double, 12, 3, Eigen::RowMajor>> jacobian_position_i(jacobians[0]);
                 jacobian_position_i.setZero();
 
                 jacobian_position_i.block<3, 3>(O_P, O_P) = -Qi.inverse().toRotationMatrix();
@@ -121,7 +120,7 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
             }
             if (jacobians[1]) // derivative of residual wrt parameter block i.e. 4D attitude_i
             {
-                Eigen::Map<Eigen::Matrix<double, 9, 4, Eigen::RowMajor>> jacobian_attitude_i(jacobians[1]);
+                Eigen::Map<Eigen::Matrix<double, 12, 4, Eigen::RowMajor>> jacobian_attitude_i(jacobians[1]);
                 jacobian_attitude_i.setZero();
 
                 //jacobian_attitude_i.block<3, 3>(O_P, O_R-O_R) = Utility::skewSymmetric(Qi.inverse() * (0.5 * (G - Fexti/MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt));
@@ -149,7 +148,7 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
             }
             if (jacobians[2])// derivative of residual wrt parameter block i.e. 3D speed i
             {
-                Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor>> jacobian_speed_i(jacobians[2]); //buzz <double, 6, 9, Eigen::RowMajor>>
+                Eigen::Map<Eigen::Matrix<double, 12, 3, Eigen::RowMajor>> jacobian_speed_i(jacobians[2]); //buzz <double, 6, 9, Eigen::RowMajor>>
                 jacobian_speed_i.setZero();
                 
                 jacobian_speed_i.block<3, 3>(O_P, O_V - O_V) = -Qi.inverse().toRotationMatrix() * sum_dt;
@@ -171,7 +170,7 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
             }
             if (jacobians[3])// derivative of residual wrt  3D external force i
             {
-                Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor>> jacobian_fext_i(jacobians[3]);
+                Eigen::Map<Eigen::Matrix<double, 12, 3, Eigen::RowMajor>> jacobian_fext_i(jacobians[3]);
                 jacobian_fext_i.setZero();
 
                 //jacobian_fext_i.block<3, 3>(O_P, 0) = - (0.5/MASS) * Qi.inverse().toRotationMatrix() * sum_dt * sum_dt;
@@ -180,6 +179,7 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
                 jacobian_fext_i.block<3, 3>(O_P, 0) = - 0.5 * sum_dt * sum_dt * Eigen::Matrix3d::Identity();
                 jacobian_fext_i.block<3, 3>(O_V-3, 0) = - sum_dt * Eigen::Matrix3d::Identity();
                 jacobian_fext_i.block<3, 3>(6, 0) = - 1.0 * Eigen::Matrix3d::Identity();
+                jacobian_fext_i.block<3, 3>(9, 0) = Eigen::Matrix3d::Identity();
 
                 //jacobian_fext_i.block<3, 3>(O_P, 0) = - 0.5 * Qi.inverse().toRotationMatrix() * sum_dt * sum_dt;
                 //jacobian_fext_i.block<3, 3>(O_V-3, 0) = - Qi.inverse().toRotationMatrix() * sum_dt;
@@ -212,7 +212,7 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
             }
             if (jacobians[4])// derivative of residual wrt  3D position j
             {
-                Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor>> jacobian_position_j(jacobians[4]); //<double, 6, 3, Eigen::RowMajor>>
+                Eigen::Map<Eigen::Matrix<double, 12, 3, Eigen::RowMajor>> jacobian_position_j(jacobians[4]); //<double, 6, 3, Eigen::RowMajor>>
                 jacobian_position_j.setZero();
 
                 jacobian_position_j.block<3, 3>(O_P, O_P) = Qi.inverse().toRotationMatrix();
@@ -232,7 +232,7 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
             }
             if (jacobians[5])
             {
-                Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor>> jacobian_speed_j(jacobians[5]); //buzz <double, 6, 9, Eigen::RowMajor>>
+                Eigen::Map<Eigen::Matrix<double, 12, 3, Eigen::RowMajor>> jacobian_speed_j(jacobians[5]); //buzz <double, 6, 9, Eigen::RowMajor>>
                 jacobian_speed_j.setZero();
 
                 jacobian_speed_j.block<3, 3>(O_V-3, O_V - O_V) = Qi.inverse().toRotationMatrix();
@@ -252,7 +252,7 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
             }
             if (jacobians[6]) // derivative of residual wrt  3D external force j
             {
-                Eigen::Map<Eigen::Matrix<double, 9, 3, Eigen::RowMajor>> jacobian_fext_j(jacobians[6]); //buzz <double, 6, 9, Eigen::RowMajor>>
+                Eigen::Map<Eigen::Matrix<double, 12, 3, Eigen::RowMajor>> jacobian_fext_j(jacobians[6]); //buzz <double, 6, 9, Eigen::RowMajor>>
                 jacobian_fext_j.setZero();
 
                 jacobian_fext_j.block<3, 3>(6, 0) = Eigen::Matrix3d::Identity();

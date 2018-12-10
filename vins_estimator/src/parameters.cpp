@@ -3,6 +3,8 @@
 double THRUST_Z_N;
 double THRUST_X_Y_N;
 double F_EXT_W;
+double F_EXT_NORM_WEIGHT;
+
 int APPLY_MODEL_PREINTEGRATION;
 int EULER_INTEGRATION;
 double MASS;
@@ -100,9 +102,9 @@ void readParameters(ros::NodeHandle &n)
 
     if (APPLY_MODEL_PREINTEGRATION)
     {
-        VINS_RESULT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/extFmodel_result.csv";
-        RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/extFmodel_sim/laptop_extFmodel_sim_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
-        RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/extFmodel_sim/laptop_extFmodel_sim_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
+        VINS_RESULT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/extF2model_result.csv";
+        RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/extF2model_sim/laptop_extF2model_sim_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
+        RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/extF2model_sim/laptop_extF2model_sim_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
     }
     else
     {
@@ -150,6 +152,7 @@ void readParameters(ros::NodeHandle &n)
     THRUST_Z_N = fsSettings["control_thrust_z_n"];
     THRUST_X_Y_N = fsSettings["control_thrust_x_y_n"];
     F_EXT_W = fsSettings["fext_w"]; 
+    F_EXT_NORM_WEIGHT = fsSettings["fext_norm_weight"];
     MASS = fsSettings["mass"];
     ROS_INFO("THRUST_Z_N: %f THRUST_X_Y_N: %f MASS: %f ", THRUST_Z_N, THRUST_X_Y_N, MASS);
 
