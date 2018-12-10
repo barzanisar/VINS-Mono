@@ -54,10 +54,13 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
 
         //sqrt_info.block<3,3>(0,0) = tmp_sqrt_info_pv.block<3,3>(0,0);
         //sqrt_info.block<3,3>(3,3) = tmp_sqrt_info_pv.block<3,3>(3,3);
-        Eigen::Matrix<double, 9, 9> tmp_big_covar = pre_integration->covariance_model_pvf;// + 1e-11 * Eigen::MatrixXd::Identity(6,6);
-        Eigen::Matrix<double, 6, 6> tmp_pv_covar = tmp_big_covar.block<6,6>(0,0);
-        tmp_big_covar.block<6, 6>(0,0) = tmp_pv_covar.inverse();
-        tmp_big_covar.block<3, 3>(6,6) = 1.0 / (pre_integration->sum_dt * pre_integration->sum_dt * (F_EXT_W * F_EXT_W) )* Eigen::Matrix3d::Identity();
+        Eigen::Matrix<double, 9, 9> tmp_big_covar;
+        tmp_big_covar.setZero();
+        tmp_big_covar.block<6, 6>(0,0) = pre_integration->covariance_model_pv.inverse();// + 1e-11 * Eigen::MatrixXd::Identity(6,6);
+        //Eigen::Matrix<double, 6, 6> tmp_pv_covar = tmp_big_covar.block<6,6>(0,0);
+        //tmp_big_covar.block<6, 6>(0,0) = tmp_pv_covar.inverse();
+        tmp_big_covar.block<3, 3>(6,6) = 1.0 / (pre_integration->sum_dt * pre_integration->sum_dt * F_EXT_W * F_EXT_W )* Eigen::Matrix3d::Identity();
+        //tmp_big_covar.block<3, 3>(6,6) = pre_integration->sum_dt * pre_integration->sum_dt * F_EXT_W * F_EXT_W * Eigen::Matrix3d::Identity();
 
         //Eigen::Matrix<double, 6, 6> inv_small_covar =  inv_big_covar * 1e-2 ;
 
@@ -70,8 +73,9 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
 
 
         
-        ROS_INFO_STREAM_ONCE("Model sqrt_info :" << sqrt_info);
-        ROS_INFO_STREAM_ONCE("Model covariance_model : ") ;
+        ROS_INFO_STREAM_ONCE("Model sqrt_info : ");
+        ROS_INFO_STREAM_ONCE(sqrt_info);
+        ROS_INFO_STREAM_ONCE("Model covariance_model inverse : ") ;
         ROS_INFO_STREAM_ONCE(tmp_big_covar);
 
         //ROS_INFO_STREAM_ONCE("Model covariance_model + Identity: ") ;
@@ -175,6 +179,7 @@ class ModelFactor : public ceres::SizedCostFunction<9, 3, 4, 3, 3, 3, 3, 3> //po
 
                 jacobian_fext_i.block<3, 3>(O_P, 0) = - 0.5 * sum_dt * sum_dt * Eigen::Matrix3d::Identity();
                 jacobian_fext_i.block<3, 3>(O_V-3, 0) = - sum_dt * Eigen::Matrix3d::Identity();
+                jacobian_fext_i.block<3, 3>(6, 0) = - 1.0 * Eigen::Matrix3d::Identity();
 
                 //jacobian_fext_i.block<3, 3>(O_P, 0) = - 0.5 * Qi.inverse().toRotationMatrix() * sum_dt * sum_dt;
                 //jacobian_fext_i.block<3, 3>(O_V-3, 0) = - Qi.inverse().toRotationMatrix() * sum_dt;

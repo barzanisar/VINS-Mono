@@ -27,6 +27,7 @@ void Estimator::clearState()
         Ps[i].setZero();
         Vs[i].setZero();
         Bas[i].setZero();
+        //Bas[i] = Vector3d(-0.2,-0.25, 0.1);
         Bgs[i].setZero();
         Fexts[i].setZero();
         dt_buf[i].clear();
@@ -151,7 +152,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     // write result to file
     if (APPLY_MODEL_PREINTEGRATION)
     {
-        ofstream foutC("/home/barza/barza-vins-out/output/preintegrations.csv", ios::app);
+        ofstream foutC(PREINTEG_PATH, ios::app);
         foutC.setf(ios::fixed, ios::floatfield);
         foutC.precision(0);
         foutC << header.stamp.toSec() * 1e9 << "," << frame_count << ",";
@@ -776,7 +777,10 @@ void Estimator::optimization()
         problem.AddParameterBlock(para_Speed[i], SIZE_SPEED);
         problem.AddParameterBlock(para_Bias[i], SIZE_BIAS);
         if (APPLY_MODEL_PREINTEGRATION)
-            problem.AddParameterBlock(para_Fext[i], SIZE_FORCES);
+            {
+                problem.AddParameterBlock(para_Fext[i], SIZE_FORCES);
+                //problem.SetParameterBlockConstant(para_Bias[i]);
+            }
     }
     for (int i = 0; i < NUM_OF_CAM; i++)
     {

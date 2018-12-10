@@ -30,6 +30,9 @@ std::string VINS_RESULT_PATH;
 std::string RPG_RESULT_EVAL_PATH;
 std::string VINS_GT_PATH;
 std::string RPG_GT_EVAL_PATH;
+std::string EXT_F_GT_PATH;
+std::string PREINTEG_PATH;
+
 std::string IMU_TOPIC;
 std::string CONTROL_TOPIC;
 double ROW, COL;
@@ -90,17 +93,20 @@ void readParameters(ros::NodeHandle &n)
     std::string SIMULATION_NAME;
     fsSettings["simulation_name"] >> SIMULATION_NAME;
 
-    VINS_GT_PATH = OUTPUT_PATH + "/groundtruth_" + SIMULATION_NAME + ".csv";
+    VINS_GT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/groundtruth.csv" ;
+    EXT_F_GT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/external_force_gt.csv";
+    PREINTEG_PATH = OUTPUT_PATH + SIMULATION_NAME + "/preintegrations.csv";
+
 
     if (APPLY_MODEL_PREINTEGRATION)
     {
-        VINS_RESULT_PATH = OUTPUT_PATH + "/model_result.csv";
-        RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/model_sim/laptop_model_sim_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
-        RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/model_sim/laptop_model_sim_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
+        VINS_RESULT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/extFmodel_result.csv";
+        RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/extFmodel_sim/laptop_extFmodel_sim_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
+        RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/extFmodel_sim/laptop_extFmodel_sim_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
     }
     else
     {
-        VINS_RESULT_PATH = OUTPUT_PATH + "/vins_result.csv";
+        VINS_RESULT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/vins_result.csv";
         RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/vins_sim/laptop_vins_sim_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
         RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/vins_sim/laptop_vins_sim_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
     }
@@ -120,14 +126,10 @@ void readParameters(ros::NodeHandle &n)
     std::cout << "VINS_GT_PATH is opened? " << !fout1 << " "<< fout1.bad() << " "<< fout1.fail()<< std::endl;
     fout1.close();
 
-    std::ofstream fout4("/home/barza/barza-vins-out/output/external_force_gt.csv", std::ios::out);
-    std::cout << "external force matlab path is opened? " << !fout4 << " "<< fout4.bad() << " "<< fout4.fail()<< std::endl;
-    fout4.close();
 
     std::ofstream fout2(RPG_RESULT_EVAL_PATH, std::ios::out);
     std::cout << "RPG_RESULT_EVAL_PATH is opened? " << !fout2 << " "<< fout2.bad() << " "<< fout2.fail()<< std::endl;
     fout2.close();
-
 
 
     std::ofstream fout3(RPG_GT_EVAL_PATH, std::ios::out);
@@ -136,7 +138,11 @@ void readParameters(ros::NodeHandle &n)
 
     if (APPLY_MODEL_PREINTEGRATION)
     {
-        std::ofstream foutC("/home/barza/barza-vins-out/output/preintegrations.csv", std::ios::out);
+        std::ofstream fout4(EXT_F_GT_PATH, std::ios::out);
+        std::cout << "external force matlab path is opened? " << !fout4 << " "<< fout4.bad() << " "<< fout4.fail()<< std::endl;
+        fout4.close();
+
+        std::ofstream foutC(PREINTEG_PATH, std::ios::out);
         std::cout << "preintegrations is opened? " << !foutC << " "<< foutC.bad() << " "<< foutC.fail()<< std::endl;
         foutC.close();
     }
@@ -162,7 +168,7 @@ void readParameters(ros::NodeHandle &n)
         ROS_WARN("have no prior about extrinsic param, calibrate extrinsic param");
         RIC.push_back(Eigen::Matrix3d::Identity());
         TIC.push_back(Eigen::Vector3d::Zero());
-        EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
+        EX_CALIB_RESULT_PATH = OUTPUT_PATH + "extrinsic_parameter.csv";
 
     }
     else 
@@ -170,7 +176,7 @@ void readParameters(ros::NodeHandle &n)
         if ( ESTIMATE_EXTRINSIC == 1)
         {
             ROS_WARN("Optimize extrinsic param around initial guess!");
-            EX_CALIB_RESULT_PATH = OUTPUT_PATH + "/extrinsic_parameter.csv";
+            EX_CALIB_RESULT_PATH = OUTPUT_PATH + "extrinsic_parameter.csv";
         }
         if (ESTIMATE_EXTRINSIC == 0)
             ROS_WARN(" fix extrinsic param ");
