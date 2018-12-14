@@ -800,11 +800,11 @@ void Estimator::optimization()
 
     TicToc t_whole, t_prepare;
 
-    Fexts[WINDOW_SIZE-1].setZero();
-    Fexts[WINDOW_SIZE].setZero();
+    //Fexts[WINDOW_SIZE-1].setZero();
+    //Fexts[WINDOW_SIZE].setZero();
+    Fexts[WINDOW_SIZE] = Fexts[WINDOW_SIZE-1];
     vector2double(true); // set initial guess to optimization parameters
     
-
 
     if (last_marginalization_info) // if is not nullptr i.e. prior exists from previous optimization then add its prior residual
     {

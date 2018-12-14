@@ -81,6 +81,7 @@ class IntegrationBase
         linearized_ba = _linearized_ba;
         linearized_bg = _linearized_bg;
         jacobian.setIdentity();
+        //jacobian_model.setIdentity();
         covariance.setZero();
         covariance_model.setZero();
         for (int i = 0; i < static_cast<int>(dt_buf.size()); i++)
@@ -224,7 +225,7 @@ class IntegrationBase
             }
             else
             {
-                //midpoint integration
+                //midpoint integration // delta p,r,v,bw
             
                 F_model.block<3, 3>(0, 0) = Matrix3d::Identity();
                 F_model.block<3, 3>(0, 3) = -0.25 * delta_q.toRotationMatrix() * R_F_0_x * _dt * _dt + 
@@ -296,6 +297,7 @@ class IntegrationBase
             step_jacobian = F;
             step_V = V;
             jacobian = F * jacobian;
+            //jacobian_model = F_model * jacobian_model;
             covariance = F * covariance * F.transpose() + V * noise * V.transpose();
             covariance_model = F_model * covariance_model * F_model.transpose() + V_model * noise_model * V_model.transpose();
             
@@ -376,6 +378,15 @@ class IntegrationBase
         Eigen::Vector3d corrected_delta_v = delta_v + dv_dba * dba + dv_dbg * dbg;
         Eigen::Vector3d corrected_delta_p = delta_p + dp_dba * dba + dp_dbg * dbg;
 
+        //Eigen::Vector3d corrected_delta_v_model = delta_v_model + jacobian_model.block<3, 3>(6, 9) * dbg;
+        //Eigen::Vector3d corrected_delta_p_model = delta_p_model  + jacobian_model.block<3, 3>(0, 9) * dbg;
+        //delta_v_model = corrected_delta_v_model;
+        //delta_p_model = corrected_delta_p_model;
+
+        //std::cout << "evaluating IMU residual: corrected delta_p_model, delta_p_model: " << corrected_delta_p_model.transpose() << " " << delta_p_model.transpose()<< std::endl;
+        //std::cout << "evaluating IMU residual: corrected delta_v_model, delta_v_model: " << corrected_delta_v_model.transpose() << " " << delta_v_model.transpose()<< std::endl;
+
+
         residuals.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * G * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - corrected_delta_p;
         residuals.block<3, 1>(O_R, 0) = 2 * (corrected_delta_q.inverse() * (Qi.inverse() * Qj)).vec();
         residuals.block<3, 1>(O_V, 0) = Qi.inverse() * (G * sum_dt + Vj - Vi) - corrected_delta_v;
@@ -408,17 +419,21 @@ class IntegrationBase
         return residuals;
     }
 
-    Eigen::Matrix<double, 6, 1> evaluate_model(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi, const Eigen::Vector3d &Fexti,
+    Eigen::Matrix<double, 9, 1> evaluate_model(const Eigen::Vector3d &Pi, const Eigen::Quaterniond &Qi, const Eigen::Vector3d &Vi, const Eigen::Vector3d &Fexti,
                                           const Eigen::Vector3d &Pj, const Eigen::Vector3d &Vj) const
     {
-        Eigen::Matrix<double, 6, 1> residuals_model;
+        Eigen::Matrix<double, 9, 1> residuals_model;
         // we can also do attitude runge kutta integration here
+        //std::cout << "evaluating model residual: delta_p_model: "  << delta_p_model.transpose()<< std::endl;
+        //std::cout << "evaluating model residual: delta_v_model: "  << delta_v_model.transpose()<< std::endl;
+
 
         //residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * (G - Fexti / MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - delta_p_model;
         //residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * (G - Fexti) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - delta_p_model;
         residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * G  * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - 0.5 * Fexti * sum_dt * sum_dt - delta_p_model;
         
         residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * (G  * sum_dt + Vj - Vi) - Fexti * sum_dt  - delta_v_model;
+        residuals_model.block<3, 1>(6, 0) = Fexti;
         //residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * ((G - Fexti) * sum_dt + Vj - Vi) - delta_v_model;
         //residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * ((G - Fexti / MASS) * sum_dt + Vj - Vi) - delta_v_model;
 
@@ -457,6 +472,8 @@ class IntegrationBase
     Eigen::Matrix<double, 15, 18> step_V;
     Eigen::Matrix<double, 18, 18> noise;
 
+    
+    //Eigen::Matrix<double, 12, 12> jacobian_model;
     Eigen::Matrix<double, 12, 12> covariance_model;
     Eigen::Matrix<double, 6, 6> covariance_model_pv;
     //Eigen::Matrix<double, 9, 9> noise_model;

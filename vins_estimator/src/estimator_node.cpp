@@ -28,7 +28,7 @@ queue<sensor_msgs::PointCloudConstPtr> relo_buf;
 bool start_recording = true;
 
 int sum_of_wait = 0;
-int count_debug = 0;
+//int count_debug = 0;
 
 std::mutex m_buf;
 std::mutex m_state;
@@ -294,7 +294,7 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
     //if (count_debug >= 900 && count_debug <= 930)
     //    ROS_WARN_STREAM("Dropping image! with timestamp: " << feature_msg->header.stamp.toSec());
 
-    count_debug ++;
+    //count_debug ++;
 }
 
 void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
@@ -546,14 +546,14 @@ void VIO_MODEL_process()
                 Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
                 xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
 
-                if (img_msg->header.stamp.toSec() < 131.202 || img_msg->header.stamp.toSec() > 134.073)//(count_debug < 1000 || count_debug > 1030)
+                //if (img_msg->header.stamp.toSec() < 131.202 || img_msg->header.stamp.toSec() > 134.073)//(count_debug < 1000 || count_debug > 1030)
                     image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
-                else
-                {   
-                    ROS_INFO_STREAM_ONCE("start losing features with img stamp " << img_msg->header.stamp.toSec() << "count " << count_debug);
-                    if (i%2 == 0)
-                        image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
-                }
+                //else
+                //{   
+                //    ROS_INFO_STREAM_ONCE("start losing features with img stamp " << img_msg->header.stamp.toSec() << "count " << count_debug);
+                //    if (i%2 == 0)
+                //        image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
+                //}
 
             }
             estimator.processImage(image, img_msg->header);

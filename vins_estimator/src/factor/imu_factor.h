@@ -50,13 +50,14 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
 //delta_v = Qi.inverse() * (g * sum_dt + Vj - Vi);
 //delta_q = Qi.inverse() * Qj;
 
-#if 0
+//#if 0
         if ((Bai - pre_integration->linearized_ba).norm() > 0.10 ||
             (Bgi - pre_integration->linearized_bg).norm() > 0.01)
         {
+            ROS_WARN_STREAM("repropagating!: " << (Bai - pre_integration->linearized_ba).norm() << " " << (Bgi - pre_integration->linearized_bg).norm());
             pre_integration->repropagate(Bai, Bgi);
         }
-#endif
+//#endif
 
         Eigen::Map<Eigen::Matrix<double, 15, 1>> residual(residuals);
         residual = pre_integration->evaluate(Pi, Qi, Vi, Bai, Bgi,
