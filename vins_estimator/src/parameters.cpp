@@ -99,9 +99,9 @@ void readParameters(ros::NodeHandle &n)
 
     if (APPLY_MODEL_PREINTEGRATION)
     {
-        VINS_RESULT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/extFNmodel_result.csv";
-        RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/extFNmodel_sim/laptop_extFNmodel_sim_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
-        RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/extFNmodel_sim/laptop_extFNmodel_sim_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
+        VINS_RESULT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/extFNnBmodel_result.csv"; //no bias repropagation in imu factor
+        RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/extFNnBmodel_sim/laptop_extFNnBmodel_sim_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
+        RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/extFNnBmodel_sim/laptop_extFNnBmodel_sim_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
     }
     else
     {
