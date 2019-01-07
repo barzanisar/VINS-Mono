@@ -7,7 +7,7 @@ control_topic: "/hummingbird/control_command"
 
 output_path: "/home/barza/barza-vins-out/output/"
 rpg_eval_path: "/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop"
-simulation_name: "helical_eight_fY_nF_2ms" #"/laptop_vins_sim_lowFreqControl"
+simulation_name: "helical_eight_fY_nF_1ms" #"/laptop_vins_sim_lowFreqControl"
 
 #camera calibration 
 model_type: PINHOLE
