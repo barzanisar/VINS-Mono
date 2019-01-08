@@ -48,8 +48,6 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
 
     residual = sqrt_info * residual;
 
-    ROS_DEBUG_STREAM_ONCE("Projection residual after:" << residual);
-
     if (jacobians)
     {
         Eigen::Matrix3d Ri = Qi.toRotationMatrix();
@@ -81,9 +79,6 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
             jaco_i = ric.transpose() * Rj.transpose();
             
             jacobian_position_i = reduce * jaco_i;
-
-            ROS_DEBUG_STREAM_ONCE("Proj jacobian_position_i after:" << jacobian_position_i);
-            
         }
 
         if (jacobians[1])
@@ -95,7 +90,6 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
 
             jacobian_attitude_i.leftCols<3>() = reduce * jaco_i;
             jacobian_attitude_i.rightCols<1>().setZero();
-            ROS_DEBUG_STREAM_ONCE("Proj jacobian_attitude_i after:" << jacobian_attitude_i);
         }
 
         if (jacobians[2])
@@ -105,9 +99,7 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
             Eigen::Matrix<double, 3, 3> jaco_j;
             jaco_j = ric.transpose() * -Rj.transpose();
 
-            jacobian_position_j = reduce * jaco_j;
-            ROS_DEBUG_STREAM_ONCE("Proj jacobian_position_j after:" << jacobian_position_j);
-            
+            jacobian_position_j = reduce * jaco_j;   
         }
 
          if (jacobians[3])
@@ -119,7 +111,6 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
 
             jacobian_attitude_j.leftCols<3>() = reduce * jaco_j;
             jacobian_attitude_j.rightCols<1>().setZero();
-            ROS_DEBUG_STREAM_ONCE("Proj jacobian_attitude_j after:" << jacobian_attitude_j);
         }
 
         if (jacobians[4])
@@ -129,8 +120,6 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
             jaco_ex = ric.transpose() * (Rj.transpose() * Ri - Eigen::Matrix3d::Identity());
             
             jacobian_ex_position = reduce * jaco_ex;
-            ROS_DEBUG_STREAM_ONCE("Proj jacobian_ex_position after:" << jacobian_ex_position);
-            
         }
         if (jacobians[5])
         {
@@ -142,14 +131,12 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
                                      Utility::skewSymmetric(ric.transpose() * (Rj.transpose() * (Ri * tic + Pi - Pj) - tic));
             jacobian_ex_attitude.leftCols<3>() = reduce * jaco_ex;
             jacobian_ex_attitude.rightCols<1>().setZero();
-            ROS_DEBUG_STREAM_ONCE("Proj jacobian_ex_attitude after:" << jacobian_ex_attitude);
         }
         if (jacobians[6])
         {
             Eigen::Map<Eigen::Vector2d> jacobian_feature(jacobians[6]);
 #if 1
             jacobian_feature = reduce * ric.transpose() * Rj.transpose() * Ri * ric * pts_i * -1.0 / (inv_dep_i * inv_dep_i);
-            ROS_DEBUG_STREAM_ONCE("Proj jacobian_feature after:" << jacobian_feature);
 #else
             jacobian_feature = reduce * ric.transpose() * Rj.transpose() * Ri * ric * pts_i;
 #endif

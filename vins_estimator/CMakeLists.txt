@@ -54,11 +54,7 @@ add_executable(vins_estimator
     src/initial/initial_ex_rotation.cpp
     )
 
-add_executable(torque_thrust_node
-  src/torque_thrust_node.cpp)
-
-
 target_link_libraries(vins_estimator ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES}) 
-target_link_libraries(torque_thrust_node ${catkin_LIBRARIES})
+
 
 

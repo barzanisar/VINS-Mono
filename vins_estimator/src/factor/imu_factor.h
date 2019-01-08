@@ -9,7 +9,7 @@
 
 #include <ceres/ceres.h>
 
-class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //pi,qi,vi,bai bgi,  pj,qj,vj,baj bgj 
+class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6>
 {
   public:
     IMUFactor() = delete;
@@ -65,17 +65,8 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
 
         Eigen::Matrix<double, 15, 15> sqrt_info = Eigen::LLT<Eigen::Matrix<double, 15, 15>>(pre_integration->covariance.inverse()).matrixL().transpose();
         //sqrt_info.setIdentity();
-        
-        ROS_DEBUG_STREAM_ONCE("IMU residual before:" << residual);
 
         residual = sqrt_info * residual;
-/*      ROS_INFO_STREAM_ONCE("IMU sqrt_info :" << sqrt_info);
-
-        ROS_INFO_STREAM_ONCE("IMU covariance : ") ;
-        ROS_INFO_STREAM_ONCE(pre_integration->covariance);
-
-        */
-        ROS_DEBUG_STREAM_ONCE("IMU residual after:" << residual);
 
         if (jacobians)
         {
@@ -95,7 +86,7 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
 ///                ROS_BREAK();
             }
 
-            if (jacobians[0]) // derivative of residual wrt the first parameter block i.e. 3D position i
+            if (jacobians[0])
             {
                 Eigen::Map<Eigen::Matrix<double, 15, 3, Eigen::RowMajor>> jacobian_position_i(jacobians[0]);
                 jacobian_position_i.setZero();
@@ -110,10 +101,8 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
                     //std::cout << sqrt_info << std::endl;
                     //ROS_BREAK();
                 }
-
-                ROS_DEBUG_STREAM_ONCE("IMU jacobian_position_i after:" << jacobian_position_i);
             }
-            if (jacobians[1]) // derivative of residual wrt the second parameter block i.e. 4D attitude
+            if (jacobians[1])
             {
                 Eigen::Map<Eigen::Matrix<double, 15, 4, Eigen::RowMajor>> jacobian_attitude_i(jacobians[1]);
                 jacobian_attitude_i.setZero();
@@ -133,9 +122,8 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
                     //std::cout << sqrt_info << std::endl;
                     //ROS_BREAK();
                 }
-                ROS_DEBUG_STREAM_ONCE("IMU jacobian_attitude_i after:" << jacobian_attitude_i);
             }
-            if (jacobians[2]) // derivative of residual wrt the parameter block vi
+            if (jacobians[2])
             {
                 Eigen::Map<Eigen::Matrix<double, 15, 3, Eigen::RowMajor>> jacobian_speed_i(jacobians[2]);
                 jacobian_speed_i.setZero();
@@ -144,8 +132,6 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
                 jacobian_speed_i.block<3, 3>(O_V, O_V - O_V) = -Qi.inverse().toRotationMatrix();
                
                 jacobian_speed_i = sqrt_info * jacobian_speed_i;
-
-                ROS_DEBUG_STREAM_ONCE("IMU jacobian_speed_i after:" << jacobian_speed_i);
 
                 //ROS_ASSERT(fabs(jacobian_speed_i.maxCoeff()) < 1e8);
                 //ROS_ASSERT(fabs(jacobian_speed_i.minCoeff()) < 1e8);
@@ -174,8 +160,6 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
 
                 jacobian_bias_i = sqrt_info * jacobian_bias_i;
 
-                ROS_DEBUG_STREAM_ONCE("IMU jacobian_bias_i after:" << jacobian_bias_i);
-
                 //ROS_ASSERT(fabs(jacobian_bias_i.maxCoeff()) < 1e8);
                 //ROS_ASSERT(fabs(jacobian_bias_i.minCoeff()) < 1e8);
             }
@@ -187,9 +171,6 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
                 jacobian_position_j.block<3, 3>(O_P, O_P) = Qi.inverse().toRotationMatrix();
 
                 jacobian_position_j = sqrt_info * jacobian_position_j;
-
-                ROS_DEBUG_STREAM_ONCE("IMU jacobian_position_j after:" << jacobian_position_j);
-
 
                 //ROS_ASSERT(fabs(jacobian_position_j.maxCoeff()) < 1e8);
                 //ROS_ASSERT(fabs(jacobian_position_j.minCoeff()) < 1e8);
@@ -221,8 +202,6 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
 
                 jacobian_speed_j = sqrt_info * jacobian_speed_j;
 
-                ROS_DEBUG_STREAM_ONCE("IMU jacobian_speed_j after:" << jacobian_speed_j);
-
                 //ROS_ASSERT(fabs(jacobian_speed_j.maxCoeff()) < 1e8);
                 //ROS_ASSERT(fabs(jacobian_speed_j.minCoeff()) < 1e8);
             }
@@ -236,8 +215,6 @@ class IMUFactor : public ceres::SizedCostFunction<15, 3, 4, 3, 6, 3, 4, 3, 6> //
                 jacobian_bias_j.block<3, 3>(O_BG, O_BG - O_BA) = Eigen::Matrix3d::Identity();
 
                 jacobian_bias_j = sqrt_info * jacobian_bias_j;
-
-                ROS_DEBUG_STREAM_ONCE("IMU jacobian_bias_j after:" << jacobian_bias_j);
 
                 //ROS_ASSERT(fabs(jacobian_bias_j.maxCoeff()) < 1e8);
                 //ROS_ASSERT(fabs(jacobian_bias_j.minCoeff()) < 1e8);

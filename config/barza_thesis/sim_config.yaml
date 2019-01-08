@@ -7,7 +7,7 @@ control_topic: "/hummingbird/control_command"
 
 output_path: "/home/barza/barza-vins-out/output/"
 rpg_eval_path: "/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop"
-simulation_name: "helical_eight_fY_nF_1ms" #"/laptop_vins_sim_lowFreqControl"
+simulation_name: "test" #"helical_eight_fY_nF_1ms"
 
 #camera calibration 
 model_type: PINHOLE
@@ -71,8 +71,7 @@ control_thrust_z_n: 0.08 #0.08 (rmse 0.92) #0.08 vs 0.01            # control in
 control_thrust_x_y_n: 0.03 #0.02 (rmse 0.92) #0.08 better (rmse 0.09)vs 0.03 (rmse 0.1)
 fext_norm_weight: 150
 apply_model_preintegration:  1      # set to 1 to apply model preinteg
-euler_integration: 0                # for control inputs
-mass: 0.73                       # mass of asctec hummingbird 0.716
+euler_integration: 0                # Keep this 0! Euler integration is not yet tested.
 
 #loop closure parameters
 loop_closure: 0                   # start loop closure

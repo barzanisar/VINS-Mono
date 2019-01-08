@@ -9,19 +9,15 @@
 #include <fstream>
 
 const double FOCAL_LENGTH = 460.0;
-const int WINDOW_SIZE = 10; //10
+const int WINDOW_SIZE = 10;
 const int NUM_OF_CAM = 1;
 const int NUM_OF_F = 1000; // number of landmarks in the whole window i.e. total number of features observed in 10 frames
 
-// TO DO: barza: make these all externs
-extern double MASS;
-extern Eigen::Matrix3d INERTIA; //not used at the moment
-extern double THRUST_X_Y_N; //prop force std
-extern double THRUST_Z_N; //prop force std
+extern double THRUST_X_Y_N; //std deviation of collective rotor thrust in body x and y axis
+extern double THRUST_Z_N; //std deviation of collective rotor thrust in body z axis
 extern double F_EXT_NORM_WEIGHT;
 extern int APPLY_MODEL_PREINTEGRATION;
 extern int EULER_INTEGRATION;
-
 
 //#define UNIT_SPHERE_ERROR
 
@@ -56,15 +52,14 @@ extern int ESTIMATE_TD;
 extern int ROLLING_SHUTTER;
 extern double ROW, COL; //image height 480, width 752
 
-
 void readParameters(ros::NodeHandle &n);
 
 enum SIZE_PARAMETERIZATION
 {
-    SIZE_POSITION = 3, // 3 translation 
-    SIZE_ATTITUDE = 4, //  4 quaternion
-    SIZE_SPEED = 3, // 3v
-    SIZE_BIAS = 6, // 3ba, 3bg
+    SIZE_POSITION = 3,
+    SIZE_ATTITUDE = 4, // quaternion
+    SIZE_SPEED = 3, 
+    SIZE_BIAS = 6, // 3 accel bias, 3 gyro bias
     SIZE_FEATURE = 1, // 1/Zc for each landmark
     SIZE_FORCES = 3
 };
@@ -72,7 +67,7 @@ enum SIZE_PARAMETERIZATION
 enum StateOrder
 {
     O_P = 0,
-    O_R = 3, // 3,4,5 for rotation? so here we mean minimal state
+    O_R = 3, // here we mean minimal state
     O_V = 6,
     O_BA = 9,
     O_BG = 12

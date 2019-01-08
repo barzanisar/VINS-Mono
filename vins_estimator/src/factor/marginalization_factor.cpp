@@ -133,11 +133,6 @@ int MarginalizationInfo::localSize(int size) const
     return size == 4 ? 3 : size;
 }
 
-// int MarginalizationInfo::globalSize(int size) const
-// {
-//     return size == 6 ? 7 : size; // trouble
-// }
-
 void* ThreadsConstructA(void* threadsstruct)
 {
     ThreadsStruct* p = ((ThreadsStruct*)threadsstruct);
@@ -184,7 +179,7 @@ void MarginalizationInfo::marginalize()
 
     for (const auto &it : parameter_block_size)
     {
-        if (parameter_block_idx.find(it.first) == parameter_block_idx.end()) //the blocks that we don't want to drop
+        if (parameter_block_idx.find(it.first) == parameter_block_idx.end())
         {
             parameter_block_idx[it.first] = pos;
             pos += localSize(it.second);
@@ -340,8 +335,8 @@ bool MarginalizationFactor::Evaluate(double const *const *parameters, double *re
     //printf("jacobian %x\n", reinterpret_cast<long>(jacobians));
     //printf("residual %x\n", reinterpret_cast<long>(residuals));
     //}
-    int n = marginalization_info->n; //number of params we want to keep
-    int m = marginalization_info->m; //number of params we want to drop
+    int n = marginalization_info->n;
+    int m = marginalization_info->m;
     Eigen::VectorXd dx(n);
     for (int i = 0; i < static_cast<int>(marginalization_info->keep_block_size.size()); i++)
     {
@@ -349,11 +344,10 @@ bool MarginalizationFactor::Evaluate(double const *const *parameters, double *re
         int idx = marginalization_info->keep_block_idx[i] - m;
         Eigen::VectorXd x = Eigen::Map<const Eigen::VectorXd>(parameters[i], size);
         Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginalization_info->keep_block_data[i], size);
-        if (size != 4) //trouble
+        if (size != 4)
             dx.segment(idx, size) = x - x0;
         else
         {
-            //dx.segment<3>(idx + 0) = x.head<3>() - x0.head<3>();
             dx.segment<3>(idx) = 2.0 * Utility::positify(Eigen::Quaterniond(x0(3), x0(0), x0(1), x0(2)).inverse() * Eigen::Quaterniond(x(3), x(0), x(1), x(2))).vec();
             if (!((Eigen::Quaterniond(x0(3), x0(0), x0(1), x0(2)).inverse() * Eigen::Quaterniond(x(3), x(0), x(1), x(2))).w() >= 0))
             {

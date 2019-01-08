@@ -19,7 +19,6 @@ class IntegrationBase
           Fz_0{_Fz_0}, linearized_Fz{_Fz_0}, jacobian_model{Eigen::Matrix<double, 12, 12>::Identity()}, covariance_model{Eigen::Matrix<double, 12, 12>::Zero()},
           delta_p_model{Eigen::Vector3d::Zero()}, delta_v_model{Eigen::Vector3d::Zero()}, delta_q_euler{Eigen::Quaterniond::Identity()}, dbg_model{Eigen::Vector3d::Zero()}
 
-
     {
         noise = Eigen::Matrix<double, 18, 18>::Zero();
         noise.block<3, 3>(0, 0) =  (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
@@ -41,7 +40,7 @@ class IntegrationBase
         }
         else
         {
-                // for midpoint integration - makes sense when we use motor speeds instead of control commands
+            // for midpoint integration - makes sense when we use motor speeds instead of control commands
             noise_model =  Eigen::Matrix<double, 15, 15>::Zero(); //matrix Q_model
             noise_model(0, 0) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fx_0 sq
             noise_model(1, 1) = THRUST_X_Y_N * THRUST_X_Y_N; // sigma_Fy_0 sq
@@ -124,15 +123,12 @@ class IntegrationBase
 
         if (EULER_INTEGRATION)
         {
-            // Model euler-integration
-            //printf("computing euler control_acc\n");
-            Vector3d un_ang_vel = _gyr_1 - linearized_bg; // or gyr_0?
+            Vector3d un_ang_vel = _gyr_1 - linearized_bg; // or gyr_0
             un_ang_vel = un_ang_vel * _dt / 2;
             Quaterniond dR(1, un_ang_vel(0), un_ang_vel(1), un_ang_vel(2));
             result_delta_q_euler = delta_q_euler * dR;   
-            control_acc_0 = delta_q_euler * body_thrust_0; //for euler integ
-            //control_acc_0 = delta_q * body_thrust_0; //for euler integ
-            control_acc = control_acc_0; // euler
+            control_acc_0 = delta_q_euler * body_thrust_0; 
+            control_acc = control_acc_0; 
         }
         else 
         {   
@@ -141,10 +137,7 @@ class IntegrationBase
             Vector3d control_acc_1 = result_delta_q * body_thrust_1; 
             control_acc = 0.5 * (control_acc_0 + control_acc_1); 
         }
-        
 
-        //ROS_DEBUG_STREAM_THROTTLE(0.2, "control_acc: "<< control_acc.transpose() << " un_acc: " << un_acc.transpose());
-        
         //printf("model preinteg\n");
         //Model preintegration
         result_delta_p_model = delta_p_model + delta_v_model * _dt + 0.5 * control_acc * _dt * _dt;
@@ -186,12 +179,10 @@ class IntegrationBase
 
             MatrixXd F_model = MatrixXd::Zero(12, 12); // delta p,r,v,bw
             MatrixXd V_model;
-            //MatrixXd V_model = MatrixXd::Zero(12,9); //fz0,gyr0, bw
 
             if (EULER_INTEGRATION)
             {   
                 //printf("calc F model and Vmodel\n");
-                // euler integration
                 F_model.block<3, 3>(0, 0) = Matrix3d::Identity();
                 F_model.block<3, 3>(0, 3) = -0.5 * delta_q_euler.toRotationMatrix() * R_F_0_x * _dt * _dt;
                 //F_model.block<3, 3>(0, 3) = -0.5 * delta_q.toRotationMatrix() * R_F_0_x * _dt * _dt;
@@ -226,8 +217,7 @@ class IntegrationBase
             }
             else
             {
-                //midpoint integration // delta p,r,v,bw
-            
+                //midpoint integration // delta p,r,v,bw     
                 F_model.block<3, 3>(0, 0) = Matrix3d::Identity();
                 F_model.block<3, 3>(0, 3) = -0.25 * delta_q.toRotationMatrix() * R_F_0_x * _dt * _dt + 
                                       -0.25 * result_delta_q.toRotationMatrix() * R_F_1_x * (Matrix3d::Identity() - R_w_x * _dt) * _dt * _dt;
@@ -268,8 +258,8 @@ class IntegrationBase
             F.block<3, 3>(0, 6) = MatrixXd::Identity(3,3) * _dt;
             F.block<3, 3>(0, 9) = -0.25 * (delta_q.toRotationMatrix() + result_delta_q.toRotationMatrix()) * _dt * _dt;
             F.block<3, 3>(0, 12) = -0.25 * result_delta_q.toRotationMatrix() * R_a_1_x * _dt * _dt * -_dt;
-            F.block<3, 3>(3, 3) = Matrix3d::Identity() - R_w_x * _dt; // delta_q
-            F.block<3, 3>(3, 12) = -1.0 * MatrixXd::Identity(3,3) * _dt; // delta_q
+            F.block<3, 3>(3, 3) = Matrix3d::Identity() - R_w_x * _dt;
+            F.block<3, 3>(3, 12) = -1.0 * MatrixXd::Identity(3,3) * _dt;
             F.block<3, 3>(6, 3) = -0.5 * delta_q.toRotationMatrix() * R_a_0_x * _dt + 
                                   -0.5 * result_delta_q.toRotationMatrix() * R_a_1_x * (Matrix3d::Identity() - R_w_x * _dt) * _dt;
             F.block<3, 3>(6, 6) = Matrix3d::Identity();
@@ -308,8 +298,6 @@ class IntegrationBase
             covariance_model_pv.block<3,3>(0,3) = covariance_model.block<3,3>(O_P,O_V);
             covariance_model_pv.block<3,3>(3,0) = covariance_model.block<3,3>(O_V,O_P);
             covariance_model_pv.block<3,3>(3,3) = covariance_model.block<3,3>(O_V,O_V);
-        
-
         }
 
     }
@@ -331,14 +319,12 @@ class IntegrationBase
         Vector3d result_delta_v_model;
         Quaterniond result_delta_q_euler;
 
-
         midPointIntegration(_dt, acc_0, gyr_0, _acc_1, _gyr_1, delta_p, delta_q, delta_v,
-                            Fz_0, _Fz_1, delta_p_model, delta_v_model, delta_q_euler, //Fz_0, torque_0, _Fz_1, _torque_1, delta_p_model, delta_v_model,
+                            Fz_0, _Fz_1, delta_p_model, delta_v_model, delta_q_euler,
                             linearized_ba, linearized_bg,
                             result_delta_p, result_delta_q, result_delta_v,
                             result_delta_p_model, result_delta_v_model, result_delta_q_euler,
                             result_linearized_ba, result_linearized_bg, 1);
-
 
         //checkJacobian(_dt, acc_0, gyr_0, acc_1, gyr_1, delta_p, delta_q, delta_v,
         //                    linearized_ba, linearized_bg);
@@ -380,43 +366,11 @@ class IntegrationBase
         Eigen::Vector3d corrected_delta_v = delta_v + dv_dba * dba + dv_dbg * dbg;
         Eigen::Vector3d corrected_delta_p = delta_p + dp_dba * dba + dp_dbg * dbg;
 
-        //Eigen::Vector3d corrected_delta_v_model = delta_v_model + jacobian_model.block<3, 3>(6, 9) * dbg;
-        //Eigen::Vector3d corrected_delta_p_model = delta_p_model  + jacobian_model.block<3, 3>(0, 9) * dbg;
-        //delta_v_model = corrected_delta_v_model;
-        //delta_p_model = corrected_delta_p_model;
-
-        //std::cout << "evaluating IMU residual: corrected delta_p_model, delta_p_model: " << corrected_delta_p_model.transpose() << " " << delta_p_model.transpose()<< std::endl;
-        //std::cout << "evaluating IMU residual: corrected delta_v_model, delta_v_model: " << corrected_delta_v_model.transpose() << " " << delta_v_model.transpose()<< std::endl;
-
-
         residuals.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * G * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - corrected_delta_p;
         residuals.block<3, 1>(O_R, 0) = 2 * (corrected_delta_q.inverse() * (Qi.inverse() * Qj)).vec();
         residuals.block<3, 1>(O_V, 0) = Qi.inverse() * (G * sum_dt + Vj - Vi) - corrected_delta_v;
         residuals.block<3, 1>(O_BA, 0) = Baj - Bai;
         residuals.block<3, 1>(O_BG, 0) = Bgj - Bgi;
-
-        //Eigen::Matrix<double, 3, 1> tmp_v_imu_delta = Qi.inverse() * (G * sum_dt + Vj - Vi);
-        //Eigen::Matrix<double, 3, 1> tmp_p_imu_delta = Qi.inverse() * (0.5 * G * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt);
-
-
-        //std::cout << "IMU residual before: corrected delta_p: " << corrected_delta_p.transpose() << std::endl;
-        //std::cout << "IMU residual before: est_p_imu_delta: " << tmp_p_imu_delta.transpose() << std::endl;
-        //std::cout << "IMU residual before: corrected delta_v: " << corrected_delta_v.transpose() << std::endl;
-        //std::cout << "IMU residual before: est_v_imu_delta: " << tmp_v_imu_delta.transpose() << std::endl;
-
-        //std::cout << "IMU residual before: corrected_delta_q: " << corrected_delta_q.w()  << corrected_delta_q.vec().transpose() << std::endl;
-
-
-        //std::cout << "IMU residual before: Qi: " << Qi.w() << " "<< Qi.vec().transpose() << std::endl;
-        //std::cout << "IMU residual before: Qj: " << Qj.w() << " "<< Qj.vec().transpose() << std::endl;
-        //std::cout << "IMU residual before: sum_dt: " << sum_dt << std::endl;
-        //std::cout << "IMU residual before: Pi: " << Pi.transpose() << std::endl;
-        //std::cout << "IMU residual before: Pj: " << Pj.transpose() << std::endl;
-        //std::cout << "IMU residual before: Vi: " << Vi.transpose() << std::endl;
-        //std::cout << "IMU residual before: Vj: " << Vj.transpose() << std::endl;
-        //std::cout << "IMU residual before: covariance: " << covariance << std::endl;
-        //std::cout << "IMU residual before: step_jacobian F: " << step_jacobian << std::endl;
-        //std::cout << "IMU residual before: step_ V: " << step_V << std::endl;
 
         return residuals;
     }
@@ -425,39 +379,15 @@ class IntegrationBase
                                           const Eigen::Vector3d &Pj, const Eigen::Vector3d &Vj) const
     {
         Eigen::Matrix<double, 9, 1> residuals_model;
-        // we can also do attitude runge kutta integration here
-        //std::cout << "evaluating model residual: delta_p_model: "  << delta_p_model.transpose()<< std::endl;
-        //std::cout << "evaluating model residual: delta_v_model: "  << delta_v_model.transpose()<< std::endl;
 
         Eigen::Vector3d corrected_delta_v_model = delta_v_model + jacobian_model.block<3, 3>(6, 9) * dbg_model;
         Eigen::Vector3d corrected_delta_p_model = delta_p_model  + jacobian_model.block<3, 3>(0, 9) * dbg_model;
 
-        //residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * (G - Fexti / MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - delta_p_model;
-        //residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * (G - Fexti) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - delta_p_model;
         residuals_model.block<3, 1>(O_P, 0) = Qi.inverse() * (0.5 * G  * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt) - 0.5 * Fexti * sum_dt * sum_dt - corrected_delta_p_model;
         
         residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * (G  * sum_dt + Vj - Vi) - Fexti * sum_dt  - corrected_delta_v_model;
         residuals_model.block<3, 1>(6, 0) = Fexti;
-        //residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * ((G - Fexti) * sum_dt + Vj - Vi) - delta_v_model;
-        //residuals_model.block<3, 1>(O_V-3, 0) = Qi.inverse() * ((G - Fexti / MASS) * sum_dt + Vj - Vi) - delta_v_model;
-
-        //Eigen::Matrix<double, 3, 1> tmp_p_model_delta = Qi.inverse() * (0.5 * (G - Fexti / MASS) * sum_dt * sum_dt + Pj - Pi - Vi * sum_dt);
-        //Eigen::Matrix<double, 3, 1> tmp_v_model_delta = Qi.inverse() * ((G - Fexti / MASS) * sum_dt + Vj - Vi);
-
-        //std::cout << "model residual before: Qi: " << Qi.w() << " "<< Qi.vec().transpose() << std::endl;
-        //std::cout << "model residual before: sum_dt: " << sum_dt << std::endl;
-        //std::cout << "model residual before: G: " << G.transpose() << std::endl;
-        //std::cout << "model residual before: Vi: " << Vi.transpose() << std::endl;
-        //std::cout << "model residual before: Vj: " << Vj.transpose() << std::endl;
-        //std::cout << "model residual before: model delta_v: " << delta_v_model.transpose() << std::endl;
-        //std::cout << "model residual before: est_v_model_delta: " << tmp_v_model_delta.transpose() << std::endl;
-
-        //std::cout << "model residual before: Pi: " << Pi.transpose() << std::endl;
-        //std::cout << "model residual before: Pj: " << Pj.transpose() << std::endl;
-        //std::cout << "model residual before: model delta_p: " << delta_p_model.transpose() << std::endl;
-        //std::cout << "model residual before: est_p_model_delta: " << tmp_p_model_delta.transpose() << std::endl;
-
-
+        
         return residuals_model;
     }
 
@@ -480,8 +410,6 @@ class IntegrationBase
     Eigen::Matrix<double, 12, 12> jacobian_model;
     Eigen::Matrix<double, 12, 12> covariance_model;
     Eigen::Matrix<double, 6, 6> covariance_model_pv;
-    //Eigen::Matrix<double, 9, 9> noise_model;
-    //Eigen::Matrix<double, 15, 15> noise_model;
     Eigen::MatrixXd noise_model;
     
 

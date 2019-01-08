@@ -25,7 +25,7 @@ void FeatureManager::clearState()
     feature.clear();
 }
 
-int FeatureManager::getFeatureCount() // number of landmarks in the window
+int FeatureManager::getFeatureCount()
 {
     int cnt = 0;
     for (auto &it : feature)
@@ -44,7 +44,7 @@ int FeatureManager::getFeatureCount() // number of landmarks in the window
 
 bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td)
 {
-    ROS_DEBUG("input feature: %d", (int)image.size()); // no. of features visible in image
+    ROS_DEBUG("input feature: %d", (int)image.size());
     ROS_DEBUG("num of feature: %d", getFeatureCount());
     double parallax_sum = 0;
     int parallax_num = 0;
@@ -54,20 +54,20 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
         FeaturePerFrame f_per_fra(id_pts.second[0].second, td);
 
         int feature_id = id_pts.first;
-        auto it = find_if(feature.begin(), feature.end(), [feature_id](const FeaturePerId &it) //Is this feature id present in the list of features already seen? i.e. was this feature id seen before in the window?
+        auto it = find_if(feature.begin(), feature.end(), [feature_id](const FeaturePerId &it)
                           {
             return it.feature_id == feature_id;
                           });
 
-        if (it == feature.end()) // if this is a new landmark, never seen before:
+        if (it == feature.end())
         {
             feature.push_back(FeaturePerId(feature_id, frame_count));
-            feature.back().feature_per_frame.push_back(f_per_fra); //  feature.back() i.e. for the feature per id just added, now add its meas
+            feature.back().feature_per_frame.push_back(f_per_fra);
         }
-        else if (it->feature_id == feature_id)// if this feature id was already present/seen before
+        else if (it->feature_id == feature_id)
         {
-            it->feature_per_frame.push_back(f_per_fra); // add this image's meas for this feature id
-            last_track_num++; // number of features in this image that were already seen in previous frames
+            it->feature_per_frame.push_back(f_per_fra);
+            last_track_num++;
         }
     }
 
@@ -92,7 +92,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
     {
         ROS_DEBUG("parallax_sum: %lf, parallax_num: %d", parallax_sum, parallax_num);
         ROS_DEBUG("current parallax: %lf", parallax_sum / parallax_num * FOCAL_LENGTH);
-        return parallax_sum / parallax_num >= MIN_PARALLAX; // frame is keyframe if the avg parallax is greater than a certain threshold
+        return parallax_sum / parallax_num >= MIN_PARALLAX;
     }
 }
 
@@ -199,15 +199,15 @@ VectorXd FeatureManager::getDepthVector()
     return dep_vec;
 }
 
-void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]) // calculates initial guess/estimated depth for each feature in the feature list/window
+void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[])
 {
     for (auto &it_per_id : feature)
     {
         it_per_id.used_num = it_per_id.feature_per_frame.size();
-        if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))// we need atleast two meas to triangulate
+        if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
             continue;
 
-        if (it_per_id.estimated_depth > 0) // if the depth was already estimated by optimization then we don't need to initialise its estimated depth by triangulation. We only triangulate new features/landmarks we will add to the window so that we can add an initial guess to their depth estimate
+        if (it_per_id.estimated_depth > 0)
             continue;
         int imu_i = it_per_id.start_frame, imu_j = imu_i - 1;
 
@@ -355,7 +355,7 @@ void FeatureManager::removeFront(int frame_count)
 double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int frame_count)
 {
     //check the second last frame is keyframe or not
-    //parallax betwwen seconde last frame and third last frame
+    //parallax betwwen second last frame and third last frame
     const FeaturePerFrame &frame_i = it_per_id.feature_per_frame[frame_count - 2 - it_per_id.start_frame];
     const FeaturePerFrame &frame_j = it_per_id.feature_per_frame[frame_count - 1 - it_per_id.start_frame];
 

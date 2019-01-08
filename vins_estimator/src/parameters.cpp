@@ -5,7 +5,6 @@ double THRUST_X_Y_N;
 double F_EXT_NORM_WEIGHT;
 int APPLY_MODEL_PREINTEGRATION;
 int EULER_INTEGRATION;
-double MASS;
 
 double INIT_DEPTH;
 double MIN_PARALLAX;
@@ -16,7 +15,6 @@ std::vector<Eigen::Matrix3d> RIC;
 std::vector<Eigen::Vector3d> TIC;
 
 Eigen::Vector3d G{0.0, 0.0, 9.8};
-Eigen::Matrix3d INERTIA;
 
 double BIAS_ACC_THRESHOLD;
 double BIAS_GYR_THRESHOLD;
@@ -36,7 +34,7 @@ std::string PREINTEG_PATH;
 std::string IMU_TOPIC;
 std::string CONTROL_TOPIC;
 double ROW, COL;
-double TD, TR; // TR is rollingshutter
+double TD, TR; // TR is rolling shutter
 
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
@@ -78,11 +76,7 @@ void readParameters(ros::NodeHandle &n)
         ROS_INFO("APPLY_MODEL_PREINTEGRATION !!!");
     }
 
-    EULER_INTEGRATION = fsSettings["euler_integration"];
-
-    ROS_INFO("euler_integration: %d", EULER_INTEGRATION);
-
-
+    EULER_INTEGRATION = 0; //fsSettings["euler_integration"];
 
     std::string OUTPUT_PATH;
     fsSettings["output_path"] >> OUTPUT_PATH;
@@ -109,7 +103,6 @@ void readParameters(ros::NodeHandle &n)
         RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/vins_sim/laptop_vins_sim_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
         RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/vins_sim/laptop_vins_sim_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
     }
-
     
     std::cout << "matlab result path " << VINS_RESULT_PATH << std::endl;
     std::cout << "matlab groundtruth path " << VINS_GT_PATH << std::endl;
@@ -140,17 +133,13 @@ void readParameters(ros::NodeHandle &n)
     std::cout << "RPG_RESULT_EVAL_PATH is opened? " << !fout2 << " "<< fout2.bad() << " "<< fout2.fail()<< std::endl;
     fout2.close();
 
-
     std::ofstream fout3(RPG_GT_EVAL_PATH, std::ios::out);
     std::cout << "RPG_GT_EVAL_PATH is opened? " << !fout3 << " "<< fout3.bad() << " "<< fout3.fail()<< std::endl;
     fout3.close();
 
-
     THRUST_Z_N = fsSettings["control_thrust_z_n"];
     THRUST_X_Y_N = fsSettings["control_thrust_x_y_n"];
     F_EXT_NORM_WEIGHT = fsSettings["fext_norm_weight"];
-    MASS = fsSettings["mass"];
-    ROS_INFO("THRUST_Z_N: %f THRUST_X_Y_N: %f MASS: %f ", THRUST_Z_N, THRUST_X_Y_N, MASS);
 
     ACC_N = fsSettings["acc_n"];
     ACC_W = fsSettings["acc_w"];
@@ -192,8 +181,7 @@ void readParameters(ros::NodeHandle &n)
         RIC.push_back(eigen_R);
         TIC.push_back(eigen_T);
         ROS_INFO_STREAM("Extrinsic_R : " << std::endl << RIC[0]);
-        ROS_INFO_STREAM("Extrinsic_T : " << std::endl << TIC[0].transpose());
-        
+        ROS_INFO_STREAM("Extrinsic_T : " << std::endl << TIC[0].transpose());   
     } 
 
     INIT_DEPTH = 5.0;
