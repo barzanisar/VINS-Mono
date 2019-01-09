@@ -1,9 +1,13 @@
 %YAML:1.0
 
 #common parameters
-imu_topic: "/hummingbird/imu"
-image_topic: "/hummingbird/snappy_cam/optic"
-output_path: "/home/barza/barza-vins-out/output"
+imu_topic: "/snappy/snappy_imu"
+image_topic: "/snappy/snappy_cam/optic"
+control_topic: "/snappy/control_command"
+
+output_path: "/home/barza/barza-vins-out/output/"
+rpg_eval_path: "/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop"
+simulation_name: "test" #"helical_eight_fY_nF_1ms"
 
 #camera calibration 
 model_type: PINHOLE
@@ -11,15 +15,15 @@ camera_name: camera
 image_width: 640 #752
 image_height: 480 #480 
 distortion_parameters:
-   k1: 0.002067759985515252 #-2.917e-01 , , , 
-   k2: -0.004399017950617905 #8.228e-02  
-   p1: 0.010154028210468019 #5.333e-05  
-   p2: -0.004197889604487039 #-1.578e-04 
+   k1: -0.008267516427056861 #-2.917e-01 , , , 
+   k2:  0.017597991685538363 #8.228e-02  
+   p1: -0.011119431979356215 #5.333e-05  
+   p2:  0.0019004939781691358 #-1.578e-04 
 projection_parameters:
-   fx: 277.48930791048207 #4.616e+02  #    458.654 0.000000, , 0.000000, 277.41554761864444, , 0.000000, 0.000000, 1.000000]
-   fy: 277.41554761864444 #4.603e+02 #    457.296
-   cx: 320.4113193482652 #3.630e+02 #    367.215
-   cy: 230.94387579943694 #2.481e+02 #    248.375
+   fx: 278.435626099241 #4.616e+02  #    458.654 0.000000, , 0.000000, 277.41554761864444, , 0.000000, 0.000000, 1.000000]
+   fy: 278.15084682451624 #4.603e+02 #    457.296
+   cx:  303.3959097890055 #3.630e+02 #    367.215
+   cy: 242.92796716953157 #2.481e+02 #    248.375
 
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
@@ -31,15 +35,15 @@ extrinsicRotation: !!opencv-matrix
    rows: 3
    cols: 3
    dt: d
-   data: [0,  -0.707107, 0.707107, 
-           -1, 0, 0, 
-           0,  -0.707107,  -0.707107]
+   data:   [  0.0155841, -0.7817776,  0.6233625,
+               0.9998637,  0.0155841, -0.0054521,
+               -0.0054521,  0.6233625,  0.7819139]
 #Translation from camera frame to imu frame, imu^T_cam
 extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [0.04, 0.0, -0.04]
+   data:  [0.005, 0.015, 0.0]
 
 #feature traker paprameters
 max_cnt: 150            # max feature number in feature tracking
@@ -56,17 +60,17 @@ max_num_iterations: 8   # max solver itrations, to guarantee real time
 keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
 
 #imu parameters       The more accurate parameters you provide, the better performance
-acc_n:  0.08 #0.004 #0.004 #          # accelerometer measurement noise standard deviation. #0.2   0.04      0.002 #
-gyr_n:  0.004 #0.004         # gyroscope measurement noise standard deviation.     #0.05   1.6968e-04  #
-acc_w: 0.00004 #0.00004         # accelerometer bias random work noise standard deviation.  #0.02  0.003 #
-gyr_w: 2.0e-6 #       # gyroscope bias random work noise standard deviation.     #4.0e-5  1.9393e-05 # 
+acc_n:  0.316227766016838 #0.004 #0.004 #          # accelerometer measurement noise standard deviation. #0.2   0.04      0.002 #
+gyr_n:   0.01 #0.004         # gyroscope measurement noise standard deviation.     #0.05   1.6968e-04  #
+acc_w: 0.004 #0.00004         # accelerometer bias random work noise standard deviation.  #0.02  0.003 #
+gyr_w: 0.0038785 #       # gyroscope bias random work noise standard deviation.     #4.0e-5  1.9393e-05 # 
 g_norm: 9.81007     # gravity magnitude
 
 #loop closure parameters
-loop_closure: 1                    # start loop closure
+loop_closure: 0                    # start loop closure
 load_previous_pose_graph: 0        # load and reuse previous pose graph; load from 'pose_graph_save_path'
 fast_relocalization: 0             # useful in real-time and large project
-pose_graph_save_path: "/home/tony-ws1/output/pose_graph/" # save and load path
+pose_graph_save_path: "/home/barza/barza-vins-out/output/pose_graph/" # save and load path
 
 #unsynchronization parameters
 estimate_td: 0                      # online estimate time offset between camera and imu
