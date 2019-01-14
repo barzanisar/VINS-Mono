@@ -16,6 +16,7 @@ const int NUM_OF_F = 1000; // number of landmarks in the whole window i.e. total
 extern double THRUST_X_Y_N; //std deviation of collective rotor thrust in body x and y axis
 extern double THRUST_Z_N; //std deviation of collective rotor thrust in body z axis
 extern double F_EXT_NORM_WEIGHT;
+extern double SCALE_THRUST_INPUT;
 extern int APPLY_MODEL_PREINTEGRATION;
 extern int EULER_INTEGRATION;
 
@@ -43,9 +44,14 @@ extern std::string VINS_GT_PATH;
 extern std::string RPG_GT_EVAL_PATH;
 extern std::string EXT_F_GT_PATH;
 extern std::string PREINTEG_PATH;
+extern double RECORD_START_TIME;
+extern double RECORD_STOP_TIME;
+extern int RECORD_SUB_TRAJ;
 
 extern std::string IMU_TOPIC;
 extern std::string CONTROL_TOPIC;
+extern std::string FORCE_SENSOR_TOPIC;
+extern std::string GROUND_TRUTH_TOPIC;
 extern double TD;
 extern double TR;
 extern int ESTIMATE_TD;

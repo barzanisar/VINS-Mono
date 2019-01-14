@@ -61,20 +61,6 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     odometry.twist.twist.linear.y = V.y();
     odometry.twist.twist.linear.z = V.z();
     pub_latest_odometry.publish(odometry);
-
-/*    ofstream foutC("/home/barza/barza-vins-out/model_no_loop_latest.txt", ios::app);
-        foutC.setf(ios::fixed, ios::floatfield);
-        foutC.precision(12);
-        foutC << header.stamp.toSec() << " ";
-        foutC.precision(5);
-        foutC << P.x() << " "
-              << P.y() << " "
-              << P.z() << " "
-              << quadrotor_Q.x() << " "
-              << quadrotor_Q.y() << " "
-              << quadrotor_Q.z() << " "
-              << quadrotor_Q.w() << endl;
-        foutC.close();*/
 }
 
 void printStatistics(const Estimator &estimator, double t)
@@ -120,6 +106,18 @@ void printStatistics(const Estimator &estimator, double t)
 
 void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
 {
+    if (estimator.solver_flag == Estimator::SolverFlag::INITIAL)
+    {
+        start_recording_vis =true;
+        ofstream fout2(RPG_RESULT_EVAL_PATH, ios::out);
+        //cout << "RPG_RESULT_EVAL_PATH is opened? " << !fout2 << " "<< fout2.bad() << " "<< fout2.fail()<< endl;
+        fout2.close();
+
+        ofstream fout(VINS_RESULT_PATH, ios::out);
+        //cout << "VINS_RESULT_PATH is opened? " << !fout << " "<< fout.bad() << " "<< fout.fail()<< endl;
+        fout.close();
+    }
+    
     if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
     {
         nav_msgs::Odometry odometry;
@@ -197,24 +195,57 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
               << estimator.solve_time_ms << endl; 
         foutC.close();
 
-        ofstream foutA(RPG_RESULT_EVAL_PATH, ios::app);
-        foutA.setf(ios::fixed, ios::floatfield);
-        if (start_recording_vis)
+        if (RECORD_SUB_TRAJ)
         {
-            foutA << "# time x y z qx qy qz qw" << endl;
-            start_recording_vis = false;
+            if (header.stamp.toSec() > RECORD_START_TIME && header.stamp.toSec() < RECORD_STOP_TIME)
+            {
+                ofstream foutA(RPG_RESULT_EVAL_PATH, ios::app);
+                foutA.setf(ios::fixed, ios::floatfield);
+                if (start_recording_vis)
+                {
+                    ROS_INFO_STREAM_ONCE("start recording result for figure 8");
+                    foutA << "# time x y z qx qy qz qw" << endl;
+                    start_recording_vis = false;
+                }
+                foutA.precision(12);
+                foutA << header.stamp.toSec() << " ";
+                foutA.precision(5);
+                foutA << estimator.Ps[WINDOW_SIZE].x() << " "
+                      << estimator.Ps[WINDOW_SIZE].y() << " "
+                      << estimator.Ps[WINDOW_SIZE].z() << " "
+                      << tmp_Q.x() << " "
+                      << tmp_Q.y() << " "
+                      << tmp_Q.z() << " "
+                      << tmp_Q.w() << endl;
+                foutA.close();
+            }
+            else if (header.stamp.toSec() > RECORD_STOP_TIME)
+            {
+                ROS_INFO_STREAM_ONCE("stop recording result for figure 8");
+            }
         }
-        foutA.precision(12);
-        foutA << header.stamp.toSec() << " ";
-        foutA.precision(5);
-        foutA << estimator.Ps[WINDOW_SIZE].x() << " "
-              << estimator.Ps[WINDOW_SIZE].y() << " "
-              << estimator.Ps[WINDOW_SIZE].z() << " "
-              << tmp_Q.x() << " "
-              << tmp_Q.y() << " "
-              << tmp_Q.z() << " "
-              << tmp_Q.w() << endl;
-        foutA.close();
+        else
+        {
+            ofstream foutA(RPG_RESULT_EVAL_PATH, ios::app);
+            foutA.setf(ios::fixed, ios::floatfield);
+            if (start_recording_vis)
+            {
+                ROS_INFO_STREAM_ONCE("start recording result for figure 8");
+                foutA << "# time x y z qx qy qz qw" << endl;
+                start_recording_vis = false;
+            }
+            foutA.precision(12);
+            foutA << header.stamp.toSec() << " ";
+            foutA.precision(5);
+            foutA << estimator.Ps[WINDOW_SIZE].x() << " "
+                  << estimator.Ps[WINDOW_SIZE].y() << " "
+                  << estimator.Ps[WINDOW_SIZE].z() << " "
+                  << tmp_Q.x() << " "
+                  << tmp_Q.y() << " "
+                  << tmp_Q.z() << " "
+                  << tmp_Q.w() << endl;
+            foutA.close();
+        }
     }
 }
 

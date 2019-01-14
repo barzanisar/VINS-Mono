@@ -273,7 +273,7 @@ void relocalization_callback(const sensor_msgs::PointCloudConstPtr &points_msg)
     m_buf.unlock();
 }
 
-void groundtruth_callback(const nav_msgs::OdometryConstPtr &gt_msg)
+void sim_groundtruth_callback(const nav_msgs::OdometryConstPtr &gt_msg)
 {
     ofstream foutA(RPG_GT_EVAL_PATH, ios::app);
     foutA.setf(ios::fixed, ios::floatfield);
@@ -311,6 +311,43 @@ void groundtruth_callback(const nav_msgs::OdometryConstPtr &gt_msg)
           << gt_msg->twist.twist.linear.y << ","
           << gt_msg->twist.twist.linear.z << endl;
     foutC.close();       
+}
+
+void groundtruth_callback(const geometry_msgs::PoseStampedConstPtr &gt_msg)
+{
+    ofstream foutA(RPG_GT_EVAL_PATH, ios::app);
+    foutA.setf(ios::fixed, ios::floatfield);
+    if (start_recording)
+    {
+        foutA << "# time x y z qx qy qz qw" << endl;
+        start_recording = false;
+    }
+    foutA.precision(12);
+    foutA << gt_msg->header.stamp.toSec() << " ";
+    foutA.precision(5);
+    foutA << gt_msg->pose.position.x << " "
+          << gt_msg->pose.position.y << " "
+          << gt_msg->pose.position.z << " "
+          << gt_msg->pose.orientation.x << " "
+          << gt_msg->pose.orientation.y << " "
+          << gt_msg->pose.orientation.z << " "
+          << gt_msg->pose.orientation.w << endl;
+    foutA.close();
+
+// write result to file
+    ofstream foutC(VINS_GT_PATH, ios::app);
+    foutC.setf(ios::fixed, ios::floatfield);
+    foutC.precision(0);
+    foutC << gt_msg->header.stamp.toSec() * 1e9 << ",";
+    foutC.precision(5);
+    foutC << gt_msg->pose.position.x << "," //2
+          << gt_msg->pose.position.y << ","
+          << gt_msg->pose.position.z << ","
+          << gt_msg->pose.orientation.w << "," //5
+          << gt_msg->pose.orientation.x << ","
+          << gt_msg->pose.orientation.y << ","
+          << gt_msg->pose.orientation.z <<  endl;
+    foutC.close();
 }
 
 void external_force_sensor_callback(const geometry_msgs::WrenchStampedConstPtr &fext_msg)
@@ -387,7 +424,8 @@ void VIO_MODEL_process()
 
                     if (control_it!=measurement.first.second.end() && (*control_it)->header.stamp.toSec() <= current_time)
                     {
-                        Fz = (*control_it)->collective_thrust;
+                        Fz = SCALE_THRUST_INPUT * (*control_it)->collective_thrust;
+
                         ++control_it;
                     }
 
@@ -412,7 +450,8 @@ void VIO_MODEL_process()
 
                     if (control_it!=measurement.first.second.end() && (*control_it)->header.stamp.toSec() < img_t)
                     {
-                        Fz = (*control_it)->collective_thrust;
+                        Fz = SCALE_THRUST_INPUT * (*control_it)->collective_thrust;
+
                         ++control_it;
                     }
 
@@ -517,8 +556,8 @@ int main(int argc, char **argv)
     ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
 
-    ros::Subscriber sub_ground_truth = n.subscribe("/hummingbird/ground_truth/odometry", 2000, groundtruth_callback);
-    ros::Subscriber sub_force_sensor = n.subscribe("/hummingbird/ft_sensor_topic", 2000, external_force_sensor_callback);
+    ros::Subscriber sub_ground_truth = n.subscribe(GROUND_TRUTH_TOPIC, 2000, groundtruth_callback);
+    ros::Subscriber sub_force_sensor = n.subscribe(FORCE_SENSOR_TOPIC, 2000, external_force_sensor_callback);
 
     std::thread measurement_process{VIO_MODEL_process};
     ros::spin();

@@ -4,6 +4,8 @@
 imu_topic: "/hummingbird/imu" #   "/hummingbird/barza/imu"
 image_topic: "/hummingbird/rgb_camera/camera_1/image_raw" #   "/hummingbird/barza/cam"
 control_topic: "/hummingbird/control_command"
+force_sensor_topic: "/hummingbird/ft_sensor_topic"
+groundtruth_pose_topic: "/hummingbird/ground_truth/odometry"
 
 output_path: "/home/barza/barza-vins-out/output/"
 rpg_eval_path: "/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop"
@@ -70,6 +72,7 @@ g_norm: 9.81007     # gravity magnitude
 control_thrust_z_n: 0.08 #0.08 (rmse 0.92) #0.08 vs 0.01            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
 control_thrust_x_y_n: 0.03 #0.02 (rmse 0.92) #0.08 better (rmse 0.09)vs 0.03 (rmse 0.1)
 fext_norm_weight: 150
+scale_thrust_input: 1
 apply_model_preintegration:  1      # set to 1 to apply model preinteg
 euler_integration: 0                # Keep this 0! Euler integration is not yet tested.
 
@@ -88,6 +91,9 @@ rolling_shutter: 0                  # 0: global shutter camera, 1: rolling shutt
 rolling_shutter_tr: 0               # unit: s. rolling shutter read out time per frame (from data sheet). 
 
 #visualization parameters
+record_sub_traj: 0
+record_start_time: 0 # [sec]
+record_stop_time: 0 # [sec]
 save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
 visualize_imu_forward: 0        # output imu forward propogation to achieve low latency and high frequence results
 visualize_camera_size: 0.4      # size of camera marker in RVIZ

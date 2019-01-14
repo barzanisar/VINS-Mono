@@ -119,7 +119,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
 void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const std_msgs::Header &header)
 {
     // write preintegrated (delta) terms to file
-    if (APPLY_MODEL_PREINTEGRATION)
+    /*if (APPLY_MODEL_PREINTEGRATION)
     {
         ofstream foutC(PREINTEG_PATH, ios::app);
         foutC.setf(ios::fixed, ios::floatfield);
@@ -143,7 +143,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
               << pre_integrations[frame_count]->delta_q.y() << ","
               << pre_integrations[frame_count]->delta_q.z() << endl;
         foutC.close();
-    }
+    }*/
 
     ROS_DEBUG("new image coming ------------------------------------------");
     ROS_DEBUG("Adding feature points %lu", image.size());

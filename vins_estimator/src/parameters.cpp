@@ -3,6 +3,7 @@
 double THRUST_Z_N;
 double THRUST_X_Y_N;
 double F_EXT_NORM_WEIGHT;
+double SCALE_THRUST_INPUT;
 int APPLY_MODEL_PREINTEGRATION;
 int EULER_INTEGRATION;
 
@@ -30,9 +31,14 @@ std::string VINS_GT_PATH;
 std::string RPG_GT_EVAL_PATH;
 std::string EXT_F_GT_PATH;
 std::string PREINTEG_PATH;
+double RECORD_START_TIME;
+double RECORD_STOP_TIME;
+int RECORD_SUB_TRAJ;
 
 std::string IMU_TOPIC;
 std::string CONTROL_TOPIC;
+std::string FORCE_SENSOR_TOPIC;
+std::string GROUND_TRUTH_TOPIC;
 double ROW, COL;
 double TD, TR; // TR is rolling shutter
 
@@ -65,15 +71,21 @@ void readParameters(ros::NodeHandle &n)
     fsSettings["imu_topic"] >> IMU_TOPIC;
     fsSettings["control_topic"] >> CONTROL_TOPIC;
 
+    fsSettings["force_sensor_topic"] >> FORCE_SENSOR_TOPIC;
+    fsSettings["groundtruth_pose_topic"] >> GROUND_TRUTH_TOPIC;
+
     SOLVER_TIME = fsSettings["max_solver_time"];
     NUM_ITERATIONS = fsSettings["max_num_iterations"];
     MIN_PARALLAX = fsSettings["keyframe_parallax"];
     MIN_PARALLAX = MIN_PARALLAX / FOCAL_LENGTH;
+    RECORD_START_TIME = fsSettings["record_start_time"];
+    RECORD_STOP_TIME = fsSettings["record_stop_time"];
+    RECORD_SUB_TRAJ = fsSettings["record_sub_traj"];
 
     APPLY_MODEL_PREINTEGRATION = fsSettings["apply_model_preintegration"];
     if (APPLY_MODEL_PREINTEGRATION == 1)
     {
-        ROS_INFO("APPLY_MODEL_PREINTEGRATION !!!");
+        ROS_INFO("Launching VIMO!");
     }
 
     EULER_INTEGRATION = 0; //fsSettings["euler_integration"];
@@ -89,19 +101,19 @@ void readParameters(ros::NodeHandle &n)
 
     VINS_GT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/groundtruth.csv" ;
     EXT_F_GT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/external_force_gt.csv";
-    PREINTEG_PATH = OUTPUT_PATH + SIMULATION_NAME + "/preintegrations.csv";
+    //PREINTEG_PATH = OUTPUT_PATH + SIMULATION_NAME + "/preintegrations.csv";
 
     if (APPLY_MODEL_PREINTEGRATION)
     {
-        VINS_RESULT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/extFNnBcmodel_result.csv"; //no bias repropagation in imu factor
-        RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/extFNnBcmodel_sim/laptop_extFNnBcmodel_sim_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
-        RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/extFNnBcmodel_sim/laptop_extFNnBcmodel_sim_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
+        VINS_RESULT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/vimo_result.csv"; //no bias repropagation in imu factor
+        RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/vimo/laptop_vimo_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
+        RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/vimo/laptop_vimo_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
     }
     else
     {
         VINS_RESULT_PATH = OUTPUT_PATH + SIMULATION_NAME + "/vins_result.csv";
-        RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/vins_sim/laptop_vins_sim_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
-        RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/vins_sim/laptop_vins_sim_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
+        RPG_RESULT_EVAL_PATH = RPG_EVAL_PATH + "/vins/laptop_vins_" + SIMULATION_NAME + "/stamped_traj_estimate.txt";
+        RPG_GT_EVAL_PATH = RPG_EVAL_PATH + "/vins/laptop_vins_" + SIMULATION_NAME + "/stamped_groundtruth.txt";
     }
     
     std::cout << "matlab result path " << VINS_RESULT_PATH << std::endl;
@@ -111,35 +123,41 @@ void readParameters(ros::NodeHandle &n)
 
     //can check for other paths as well here: 0 means all is good. 1 means error: file path must not exist.
     std::ofstream fout(VINS_RESULT_PATH, std::ios::out);
-    std::cout << "VINS_RESULT_PATH is opened? " << !fout << " "<< fout.bad() << " "<< fout.fail()<< std::endl;
+    if (!fout || fout.bad() || fout.fail())
+        std::cout << "VINS_RESULT_PATH not opened! Check if the path exists." << std::endl;
     fout.close();
 
     std::ofstream fout1(VINS_GT_PATH, std::ios::out);
-    std::cout << "VINS_GT_PATH is opened? " << !fout1 << " "<< fout1.bad() << " "<< fout1.fail()<< std::endl;
+    if (!fout1 || fout1.bad() || fout1.fail())
+        std::cout << "VINS_GT_PATH not opened! Check if the path exists." << std::endl;
     fout1.close();
 
     if (APPLY_MODEL_PREINTEGRATION)
     {
         std::ofstream fout4(EXT_F_GT_PATH, std::ios::out);
-        std::cout << "external force matlab path is opened? " << !fout4 << " "<< fout4.bad() << " "<< fout4.fail()<< std::endl;
+        if (!fout4 || fout4.bad() || fout4.fail())
+            std::cout << "Force sensor path for matlab not opened! Check if the path exists." << std::endl;
         fout4.close();
 
-        std::ofstream foutC(PREINTEG_PATH, std::ios::out);
-        std::cout << "preintegrations is opened? " << !foutC << " "<< foutC.bad() << " "<< foutC.fail()<< std::endl;
-        foutC.close();
+        //std::ofstream foutC(PREINTEG_PATH, std::ios::out);
+        //std::cout << "preintegrations is opened? " << !foutC << " "<< foutC.bad() << " "<< foutC.fail()<< std::endl;
+        //foutC.close();
     }
 
     std::ofstream fout2(RPG_RESULT_EVAL_PATH, std::ios::out);
-    std::cout << "RPG_RESULT_EVAL_PATH is opened? " << !fout2 << " "<< fout2.bad() << " "<< fout2.fail()<< std::endl;
+    if (!fout2 || fout2.bad() || fout2.fail())
+            std::cout << "RPG_RESULT_EVAL_PATH not opened! Check if the path exists." << std::endl;
     fout2.close();
 
     std::ofstream fout3(RPG_GT_EVAL_PATH, std::ios::out);
-    std::cout << "RPG_GT_EVAL_PATH is opened? " << !fout3 << " "<< fout3.bad() << " "<< fout3.fail()<< std::endl;
+    if (!fout3 || fout3.bad() || fout3.fail())
+            std::cout << "RPG_GT_EVAL_PATH not opened! Check if the path exists." << std::endl;
     fout3.close();
 
     THRUST_Z_N = fsSettings["control_thrust_z_n"];
     THRUST_X_Y_N = fsSettings["control_thrust_x_y_n"];
     F_EXT_NORM_WEIGHT = fsSettings["fext_norm_weight"];
+    SCALE_THRUST_INPUT = fsSettings["scale_thrust_input"];
 
     ACC_N = fsSettings["acc_n"];
     ACC_W = fsSettings["acc_w"];
