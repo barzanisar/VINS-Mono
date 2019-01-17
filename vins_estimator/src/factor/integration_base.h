@@ -20,10 +20,22 @@ class IntegrationBase
           delta_p_model{Eigen::Vector3d::Zero()}, delta_v_model{Eigen::Vector3d::Zero()}, delta_q_euler{Eigen::Quaterniond::Identity()}, dbg_model{Eigen::Vector3d::Zero()}
 
     {
-        noise = Eigen::Matrix<double, 18, 18>::Zero();
+/*        noise = Eigen::Matrix<double, 18, 18>::Zero();
         noise.block<3, 3>(0, 0) =  (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
         noise.block<3, 3>(3, 3) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
         noise.block<3, 3>(6, 6) =  (ACC_N * ACC_N) * Eigen::Matrix3d::Identity();
+        noise.block<3, 3>(9, 9) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
+        noise.block<3, 3>(12, 12) =  (ACC_W * ACC_W) * Eigen::Matrix3d::Identity();
+        noise.block<3, 3>(15, 15) =  (GYR_W * GYR_W) * Eigen::Matrix3d::Identity();*/
+
+        noise = Eigen::Matrix<double, 18, 18>::Zero();
+        noise(0, 0) =  ACC_N(0) * ACC_N(0);
+        noise(1, 1) =  ACC_N(1) * ACC_N(1);
+        noise(2, 2) =  ACC_N(2) * ACC_N(2);
+        noise.block<3, 3>(3, 3) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
+        noise(6, 6) =  ACC_N(0) * ACC_N(0);
+        noise(7, 7) =  ACC_N(1) * ACC_N(1);
+        noise(8, 8) =  ACC_N(2) * ACC_N(2);
         noise.block<3, 3>(9, 9) =  (GYR_N * GYR_N) * Eigen::Matrix3d::Identity();
         noise.block<3, 3>(12, 12) =  (ACC_W * ACC_W) * Eigen::Matrix3d::Identity();
         noise.block<3, 3>(15, 15) =  (GYR_W * GYR_W) * Eigen::Matrix3d::Identity();

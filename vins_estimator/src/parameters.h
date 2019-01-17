@@ -26,7 +26,9 @@ extern double INIT_DEPTH;
 extern double MIN_PARALLAX;
 extern int ESTIMATE_EXTRINSIC;
 
-extern double ACC_N, ACC_W; //std_dev of accel noise and accel bias random walk noise
+//extern double ACC_N, ACC_W; //std_dev of accel noise and accel bias random walk noise
+extern Eigen::Vector3d ACC_N;
+extern double ACC_W;
 extern double GYR_N, GYR_W;
 
 extern std::vector<Eigen::Matrix3d> RIC; // rotation of camera wrt IMU

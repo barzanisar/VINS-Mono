@@ -9,7 +9,9 @@ int EULER_INTEGRATION;
 
 double INIT_DEPTH;
 double MIN_PARALLAX;
-double ACC_N, ACC_W;
+Eigen::Vector3d ACC_N;
+//double ACC_N, ACC_W;
+double ACC_W;
 double GYR_N, GYR_W; 
 
 std::vector<Eigen::Matrix3d> RIC;
@@ -159,7 +161,7 @@ void readParameters(ros::NodeHandle &n)
     F_EXT_NORM_WEIGHT = fsSettings["fext_norm_weight"];
     SCALE_THRUST_INPUT = fsSettings["scale_thrust_input"];
 
-    ACC_N = fsSettings["acc_n"];
+    //ACC_N = fsSettings["acc_n"];
     ACC_W = fsSettings["acc_w"];
     GYR_N = fsSettings["gyr_n"];
     GYR_W = fsSettings["gyr_w"];
@@ -187,19 +189,24 @@ void readParameters(ros::NodeHandle &n)
         if (ESTIMATE_EXTRINSIC == 0)
             ROS_WARN(" fix extrinsic param ");
 
-        cv::Mat cv_R, cv_T;
+        cv::Mat cv_R, cv_T, cv_acc_n;
         fsSettings["extrinsicRotation"] >> cv_R;
         fsSettings["extrinsicTranslation"] >> cv_T;
+        fsSettings["acc_n"] >> cv_acc_n;
         Eigen::Matrix3d eigen_R;
         Eigen::Vector3d eigen_T;
+        //Eigen::Vector3d eigen_acc_n;
         cv::cv2eigen(cv_R, eigen_R);
         cv::cv2eigen(cv_T, eigen_T);
+        cv::cv2eigen(cv_acc_n, ACC_N);
         Eigen::Quaterniond Q(eigen_R);
         eigen_R = Q.normalized();
         RIC.push_back(eigen_R);
         TIC.push_back(eigen_T);
+        //ACC_N = eigen_acc_n;
         ROS_INFO_STREAM("Extrinsic_R : " << std::endl << RIC[0]);
-        ROS_INFO_STREAM("Extrinsic_T : " << std::endl << TIC[0].transpose());   
+        ROS_INFO_STREAM("Extrinsic_T : " << std::endl << TIC[0].transpose());
+        ROS_INFO_STREAM("ACC_N : " << std::endl << ACC_N << std::endl << ACC_N(0) << " " << ACC_N(1) << " " << ACC_N(2));   
     } 
 
     INIT_DEPTH = 5.0;

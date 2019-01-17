@@ -1,15 +1,16 @@
 %YAML:1.0
 
-#common parameters
+# topic names
 imu_topic: "/snappy/snappy_imu"
 image_topic: "/snappy/snappy_cam/optic"
 control_topic: "/snappy/control_command"
 force_sensor_topic: "/load_cell/wrench"
 groundtruth_pose_topic: "/optitrack/snappy_groundtruth"
 
-output_path: "/home/barza/barza-vins-out/output/"
-rpg_eval_path: "/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop"
-simulation_name: "test_clean_branch"
+# paths to store results of the state, computation times and external force estimates
+output_path: "/home/barza/barza-vins-out/output/" # to store results in .csv format to evaluate with matlab
+rpg_eval_path: "/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop" # to store results in format required by rpg_trajectory_evaluation_toolbox
+simulation_name: "exp2"
 
 #camera calibration 
 model_type: PINHOLE
@@ -44,7 +45,7 @@ extrinsicTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [-0.005, 0.015, 0.0] #[-0.0026, 0.024, -0.0098]
+   data: [-0.005, 0.015, 0.0]
 
 #feature traker paprameters
 max_cnt: 150            # max feature number in feature tracking
@@ -61,17 +62,22 @@ max_num_iterations: 10   # max solver itrations, to guarantee real time
 keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
 
 #imu parameters       The more accurate parameters you provide, the better performance
-acc_n: 0.6         # accelerometer measurement noise standard deviation. #0.2   0.04
-gyr_n: 0.1        # gyroscope measurement noise standard deviation.     #0.05  0.004
+acc_n: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [0.3, 0.3, 0.6] #[0.05, 0.05, 0.1] # 0.6
+#acc_n: [0.3, 0.1, 0.1]         # accelerometer measurement noise standard deviation. #0.2   0.04
+gyr_n: 0.05  #0.1      # gyroscope measurement noise standard deviation.     #0.05  0.004
 acc_w: 0.02         # accelerometer bias random work noise standard deviation.  #0.02
 gyr_w: 4.0e-5       # gyroscope bias random work noise standard deviation.     #4.0e-5
 g_norm: 9.81007     # gravity magnitude
 
 #model parameters       The more accurate parameters you provide, the better performance
-control_thrust_z_n: 0.6 #0.4 (rmse 0.92) #0.08 vs 0.01            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
-control_thrust_x_y_n: 0.2 #0.2 (rmse 0.92) #0.08 better (rmse 0.09)vs 0.03 (rmse 0.1)
-fext_norm_weight: 10
-scale_thrust_input: 0.846
+control_thrust_z_n: 0.08 #0.08 #0.6 (rmse 0.92) #0.08 vs 0.01            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
+control_thrust_x_y_n: 0.05 #0.05 #0.2 (rmse 0.92) #0.08 better (rmse 0.09)vs 0.03 (rmse 0.1)
+fext_norm_weight: 1 #10
+scale_thrust_input: 0.75 #0.846
 apply_model_preintegration: 1      # set to 1 to apply model preintegration i.e. to launch VIMO instead of VINS
 euler_integration: 0                # for control inputs
 
@@ -91,8 +97,8 @@ rolling_shutter_tr: 0               # unit: s. rolling shutter read out time per
 
 #visualization parameters
 record_sub_traj: 1
-record_start_time: 1547124725 # [sec]
-record_stop_time: 1547124795 # [sec]
+record_start_time: 1547635356 # old 1547124725 # [sec] new 1547635356
+record_stop_time:  1547635429 # [sec] old 1547124795    new 1547635429.520712 new_late_stop 1547635443.436271  end time 1547635498.059103
 save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
 visualize_imu_forward: 0        # output imu forward propogation to achieve low latency and high frequence results
 visualize_camera_size: 0.4      # size of camera marker in RVIZ
