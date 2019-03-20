@@ -10,7 +10,7 @@ groundtruth_pose_topic: "/optitrack/snappy_groundtruth"
 # paths to store results of the state, computation times and external force estimates
 output_path: "/home/barza/barza-vins-out/output/" # to store results in .csv format to evaluate with matlab
 rpg_eval_path: "/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop" # to store results in format required by rpg_trajectory_evaluation_toolbox
-simulation_name: "exp2"
+simulation_name: "exp2" 
 
 #camera calibration 
 model_type: PINHOLE
@@ -18,15 +18,15 @@ camera_name: camera
 image_width: 640
 image_height: 480
 distortion_parameters:
-   k1: -0.25671807 #-0.531706   
-   k2: 0.04725751 #0.220641
-   p1: 0.00104411 #0.006742
-   p2: -0.00062039 #-0.006576
+   k1: -0.25671807  
+   k2: 0.04725751 
+   p1: 0.00104411
+   p2: -0.00062039
 projection_parameters:
-   fx: 286.82575808 #278.435626099241
-   fy: 286.84568334 #278.15084682451624
-   cx: 315.77845816 #303.3959097890055
-   cy: 239.75430535 #242.92796716953157
+   fx: 286.82575808
+   fy: 286.84568334
+   cx: 315.77845816
+   cy: 239.75430535
 
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
@@ -62,24 +62,24 @@ max_num_iterations: 10   # max solver itrations, to guarantee real time
 keyframe_parallax: 10.0 # keyframe selection threshold (pixel)
 
 #imu parameters       The more accurate parameters you provide, the better performance
-acc_n: !!opencv-matrix
+acc_n: !!opencv-matrix # accelerometer measurement noise standard deviation.
    rows: 3
    cols: 1
    dt: d
-   data: [0.3, 0.3, 0.6] #[0.05, 0.05, 0.1] # 0.6
-#acc_n: [0.3, 0.1, 0.1]         # accelerometer measurement noise standard deviation. #0.2   0.04
-gyr_n: 0.05  #0.1      # gyroscope measurement noise standard deviation.     #0.05  0.004
-acc_w: 0.02         # accelerometer bias random work noise standard deviation.  #0.02
-gyr_w: 4.0e-5       # gyroscope bias random work noise standard deviation.     #4.0e-5
+   data: [0.05, 0.05, 0.1] #[0.3, 0.3, 0.6] 
+#acc_n: 0.6         # accelerometer measurement noise standard deviation. 
+gyr_n: 0.05        # gyroscope measurement noise standard deviation.     
+acc_w: 0.02         # accelerometer bias random work noise standard deviation. 
+gyr_w: 4.0e-5       # gyroscope bias random work noise standard deviation.
 g_norm: 9.81007     # gravity magnitude
 
 #model parameters       The more accurate parameters you provide, the better performance
-control_thrust_z_n: 0.08 #0.08 #0.6 (rmse 0.92) #0.08 vs 0.01            # control input acceleration noise standard deviation. # 0.001 better rmse 0.32
-control_thrust_x_y_n: 0.05 #0.05 #0.2 (rmse 0.92) #0.08 better (rmse 0.09)vs 0.03 (rmse 0.1)
-fext_norm_weight: 1 #10
+control_thrust_z_n: 0.08 #0.01  # mass normalized collective thrust in body z axis noise standard deviation
+control_thrust_x_y_n: 0.05 #0.005 # mass normalized collective thrust in body x and y axis noise standard deviation
+fext_norm_weight: 1  #10 # weight for external force norm 
 scale_thrust_input: 0.75 #0.846
-apply_model_preintegration: 1      # set to 1 to apply model preintegration i.e. to launch VIMO instead of VINS
-euler_integration: 0                # for control inputs
+apply_model_preintegration: 1   # set to 1 to apply model preintegration i.e. to launch VIMO instead of VINS
+euler_integration: 0            # Not Tested yet! TODO: Euler integration is not needed so remove it.
 
 #loop closure parameters
 loop_closure: 0                    # start loop closure
@@ -96,9 +96,9 @@ rolling_shutter: 0                  # 0: global shutter camera, 1: rolling shutt
 rolling_shutter_tr: 0               # unit: s. rolling shutter read out time per frame (from data sheet). 
 
 #visualization parameters
-record_sub_traj: 1
-record_start_time: 1547635356 # old 1547124725 # [sec] new 1547635356
-record_stop_time:  1547635429 # [sec] old 1547124795    new 1547635429.520712 new_late_stop 1547635443.436271  end time 1547635498.059103
+record_sub_traj: 1               # to record pose estimates for only a part of the trajectory for rpg_trajectory_evaluation toolbox 
+record_start_time: 1547635356    # [sec]
+record_stop_time:  1547635429    # [sec]
 save_image: 1                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
 visualize_imu_forward: 0        # output imu forward propogation to achieve low latency and high frequence results
 visualize_camera_size: 0.4      # size of camera marker in RVIZ
