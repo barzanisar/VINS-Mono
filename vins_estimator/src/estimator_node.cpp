@@ -8,6 +8,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 
+#include <math.h> 
 #include "estimator.h"
 #include "parameters.h"
 #include "utility/visualization.h"
@@ -19,7 +20,8 @@ std::condition_variable con;
 double current_time = -1;
 
 queue<sensor_msgs::ImuConstPtr> imu_buf;
-queue<quadrotor_msgs::ControlCommand::ConstPtr> control_buf;
+//queue<quadrotor_msgs::ControlCommand::ConstPtr> control_buf;
+queue<blackbird::MotorRPM::ConstPtr> control_buf;
 queue<sensor_msgs::PointCloudConstPtr> feature_buf;
 queue<sensor_msgs::PointCloudConstPtr> relo_buf;
 bool start_recording = true;
@@ -41,9 +43,11 @@ Eigen::Vector3d gyr_0;
 bool init_feature = 0;
 bool init_imu = 1;
 double last_imu_t = 0;
-
+Eigen::Quaterniond imu2body(0.707997, 0.004706, -0.003721, 0.706190); //(0.707997, 0.004706, -0.003721, 0.706190); (0.706190, 0.707997, 0.004706, -0.003721)
 bool beginning = true;
 double last_Fz = 0;
+Eigen::Vector3d last_accel(0.0,0.0,0.0);
+Eigen::Vector3d last_angvel(0.0,0.0,0.0);
 double last_control_t = 0;
 
 
@@ -103,10 +107,10 @@ void update()
 }
 
 
-std::vector<std::pair<std::pair<std::vector<sensor_msgs::ImuConstPtr>,std::vector<quadrotor_msgs::ControlCommand::ConstPtr>>, sensor_msgs::PointCloudConstPtr>>
-getMeasurements1()
+std::vector<std::pair<std::pair<std::vector<sensor_msgs::ImuConstPtr>,std::vector<blackbird::MotorRPM::ConstPtr>>, sensor_msgs::PointCloudConstPtr>>
+getMeasurements()
 {
-    std::vector<std::pair<std::pair<std::vector<sensor_msgs::ImuConstPtr>,std::vector<quadrotor_msgs::ControlCommand::ConstPtr>>, sensor_msgs::PointCloudConstPtr>> measurements;
+    std::vector<std::pair<std::pair<std::vector<sensor_msgs::ImuConstPtr>,std::vector<blackbird::MotorRPM::ConstPtr>>, sensor_msgs::PointCloudConstPtr>> measurements;
 
     while (true)
     {
@@ -124,15 +128,22 @@ getMeasurements1()
         {
             ROS_WARN_STREAM("throw controls with ts, only should happen at the beginning" << control_buf.front()->header.stamp.toSec());
             control_buf.pop(); //pops front
-            last_Fz = control_buf.front()->collective_thrust;
+            //last_Fz = control_buf.front()->collective_thrust;
             continue;
         }
-        else if (imu_buf.front()->header.stamp.toSec() < control_buf.front()->header.stamp.toSec() && beginning)
+        else if (APPLY_MODEL_PREINTEGRATION && control_buf.front()->header.stamp.toSec() < imu_buf.front()->header.stamp.toSec() && beginning)
         {
-            ROS_WARN_STREAM("throw IMUs with ts, only should happen at the beginning" << imu_buf.front()->header.stamp.toSec());
-            imu_buf.pop();
+            // for control rate higher than imu rate, let IMU come first and then control
+            ROS_WARN_STREAM("throw CONTROLS with ts, only should happen at the beginning" << control_buf.front()->header.stamp.toSec());
+            control_buf.pop();
             continue;
         }
+        // else if (false && imu_buf.front()->header.stamp.toSec() < control_buf.front()->header.stamp.toSec() && beginning)
+        // {   // for imu rate higher than control input rate
+        //     ROS_WARN_STREAM("throw IMUs with ts, only should happen at the beginning" << imu_buf.front()->header.stamp.toSec());
+        //     imu_buf.pop();
+        //     continue;
+        // }
 
         beginning =  false;
 
@@ -149,7 +160,7 @@ getMeasurements1()
         ROS_INFO_STREAM_ONCE("filling image buf" << img_msg->header.stamp.toSec());
 
         std::vector<sensor_msgs::ImuConstPtr> IMUs;
-        std::vector<quadrotor_msgs::ControlCommand::ConstPtr> controls;
+        std::vector<blackbird::MotorRPM::ConstPtr> controls;
         
         while (imu_buf.front()->header.stamp.toSec() < img_msg->header.stamp.toSec() + estimator.td)
         {
@@ -177,7 +188,7 @@ getMeasurements1()
 }
 
 
-void imu_callback1(const sensor_msgs::ImuConstPtr &imu_msg)
+void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
     if (imu_msg->header.stamp.toSec() <= last_imu_t)
     {
@@ -204,25 +215,45 @@ void imu_callback1(const sensor_msgs::ImuConstPtr &imu_msg)
     }
 }
 
-void control_inputs_callback(const quadrotor_msgs::ControlCommand::ConstPtr& torque_thrust_msg)
+// void control_inputs_callback(const quadrotor_msgs::ControlCommand::ConstPtr& torque_thrust_msg)
+// {
+//     if (torque_thrust_msg->header.stamp.toSec() <= last_control_t)
+//     {
+//         //ROS_WARN("torque_thrust message in disorder!");
+//         //if (torque_thrust_msg->header.stamp.toSec() == last_control_t)
+//             //ROS_WARN("skipping duplicate timestamped torque_thrust message!");
+//         return;
+//     }
+//     last_control_t = torque_thrust_msg->header.stamp.toSec();
+
+//     ROS_INFO_STREAM_ONCE("First control_msg_stamp_sec: "<< torque_thrust_msg->header.stamp.toSec());
+    
+//     m_buf.lock();
+//     control_buf.push(torque_thrust_msg);
+//     m_buf.unlock();
+//     con.notify_one();
+
+// } 
+
+void control_inputs_callback(const blackbird::MotorRPM::ConstPtr& rpm_msg)
 {
-    if (torque_thrust_msg->header.stamp.toSec() <= last_control_t)
+    if (rpm_msg->header.stamp.toSec() <= last_control_t)
     {
-/*        ROS_WARN("torque_thrust message in disorder!");
-            if (torque_thrust_msg->header.stamp.toSec() == last_control_t)
-                ROS_WARN("skipping duplicate timestamped torque_thrust message!");*/
+        //ROS_WARN("torque_thrust message in disorder!");
+        //if (torque_thrust_msg->header.stamp.toSec() == last_control_t)
+            //ROS_WARN("skipping duplicate timestamped torque_thrust message!");
         return;
     }
-    last_control_t = torque_thrust_msg->header.stamp.toSec();
+    last_control_t = rpm_msg->header.stamp.toSec();
 
-    ROS_INFO_STREAM_ONCE("First control_msg_stamp_sec: "<< torque_thrust_msg->header.stamp.toSec());
+    ROS_INFO_STREAM_ONCE("First control_msg_stamp_sec: "<< rpm_msg->header.stamp.toSec());
     
     m_buf.lock();
-    control_buf.push(torque_thrust_msg);
+    control_buf.push(rpm_msg);
     m_buf.unlock();
     con.notify_one();
 
-}
+} 
 
 void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 {
@@ -372,94 +403,256 @@ void VIO_MODEL_process()
 {
     while (true)
     {
-        std::vector<std::pair<std::pair<std::vector<sensor_msgs::ImuConstPtr>,std::vector<quadrotor_msgs::ControlCommand::ConstPtr>>, sensor_msgs::PointCloudConstPtr>> measurements;
+        std::vector<std::pair<std::pair<std::vector<sensor_msgs::ImuConstPtr>,std::vector<blackbird::MotorRPM::ConstPtr>>, sensor_msgs::PointCloudConstPtr>> measurements;
         std::unique_lock<std::mutex> lk(m_buf);
         con.wait(lk, [&]
                  {
-            return (measurements = getMeasurements1()).size() != 0;
+            return (measurements = getMeasurements()).size() != 0;
                  });
         lk.unlock();
         m_estimator.lock();
         for (auto &measurement : measurements)
         {
             auto img_msg = measurement.second;
-            double dx = 0, dy = 0, dz = 0, rx = 0, ry = 0, rz = 0, Fz = last_Fz;
+            double dx = last_accel.x(), dy = last_accel.y(), dz = last_accel.z(), rx = last_angvel.x(), ry = last_angvel.y(), rz = last_angvel.z(), Fz = 0.0;
             std::vector<sensor_msgs::ImuConstPtr>::iterator imu_it = measurement.first.first.begin(); 
-            std::vector<quadrotor_msgs::ControlCommand::ConstPtr>::iterator control_it = measurement.first.second.begin();
+            std::vector<blackbird::MotorRPM::ConstPtr>::iterator control_it = measurement.first.second.begin();
 
-            
-            for (; imu_it!=measurement.first.first.end(); ++imu_it)
+            if (APPLY_MODEL_PREINTEGRATION)
             {
+               for (; control_it!=measurement.first.second.end(); ++control_it)
+                {
 
-                double t = (*imu_it)->header.stamp.toSec();
+                    double t = (*control_it)->header.stamp.toSec();
 
-                if (imu_it == measurement.first.first.begin()){
-                    ROS_DEBUG_STREAM("IMU begin time, acc: "<< t << "\t" << (*imu_it)->linear_acceleration.x << "\t" << (*imu_it)->linear_acceleration.y << "\t" << (*imu_it)->linear_acceleration.z);
-                }
+                    if (imu_it == measurement.first.first.begin()){
+                        ROS_DEBUG_STREAM("IMU begin time, acc: "<< (*imu_it)->header.stamp.toSec() << "\t" << (*imu_it)->linear_acceleration.x << "\t" << (*imu_it)->linear_acceleration.y << "\t" << (*imu_it)->linear_acceleration.z);
+                    }
 
 
-                if ((imu_it+1) == measurement.first.first.end()){
-                    ROS_DEBUG_STREAM("IMU frame end time, acc: " << t << "\t" << (*imu_it)->linear_acceleration.x << "\t" << (*imu_it)->linear_acceleration.y << "\t" << (*imu_it)->linear_acceleration.z);
-                }
+                    if ((imu_it+1) == measurement.first.first.end()){
+                        ROS_DEBUG_STREAM("IMU frame end time, acc: " << (*imu_it)->header.stamp.toSec() << "\t" << (*imu_it)->linear_acceleration.x << "\t" << (*imu_it)->linear_acceleration.y << "\t" << (*imu_it)->linear_acceleration.z);
+                    }
 
-                double img_t = img_msg->header.stamp.toSec() + estimator.td;
-                if (t <= img_t)
-                { 
-                    if (current_time < 0)
+                    if (control_it == measurement.first.second.begin()){
+                        ROS_DEBUG_STREAM("Control begin time, acc: "<< t);
+                    }
+
+
+                    if ((control_it+1) == measurement.first.second.end()){
+                        ROS_DEBUG_STREAM("Control frame end time, acc: " << t); 
+                    }
+
+                    double img_t = img_msg->header.stamp.toSec() + estimator.td;
+                    if (t <= img_t)
+                    { 
+                        if (current_time < 0)
+                            current_time = t;
+
+
+                        double dt = t - current_time;
+                        ROS_ASSERT(dt >= 0);
                         current_time = t;
 
+                        double sum_sqr_rpm = pow((*control_it)->rpm[0], 2) + pow((*control_it)->rpm[1], 2) + pow((*control_it)->rpm[2], 2) + pow((*control_it)->rpm[3], 2);
+                        Fz = SCALE_THRUST_INPUT * sum_sqr_rpm * (2.03e-8/0.915);
+                        
 
-                    double dt = t - current_time;
-                    ROS_ASSERT(dt >= 0);
-                    current_time = t;
-                    
+                        // if (imu_it!=measurement.first.first.end() && (*imu_it)->header.stamp.toSec() <= current_time)
+                        // {
+                        //     dx = (*imu_it)->linear_acceleration.x;
+                        //     dy = (*imu_it)->linear_acceleration.y;
+                        //     dz = (*imu_it)->linear_acceleration.z;
+                        //     rx = (*imu_it)->angular_velocity.x;
+                        //     ry = (*imu_it)->angular_velocity.y;
+                        //     rz = (*imu_it)->angular_velocity.z;
 
-                    dx = (*imu_it)->linear_acceleration.x;
-                    dy = (*imu_it)->linear_acceleration.y;
-                    dz = (*imu_it)->linear_acceleration.z;
-                    rx = (*imu_it)->angular_velocity.x;
-                    ry = (*imu_it)->angular_velocity.y;
-                    rz = (*imu_it)->angular_velocity.z;
+                        //     // //blackbird imu tilted
+                        //     // Eigen::Vector3d accel(dx,dy,dz);
+                        //     // Eigen::Vector3d angvel(rx,ry,rz);
+                        //     // accel = imu2body.normalized().toRotationMatrix() * accel;
+                        //     // angvel = imu2body.normalized().toRotationMatrix() * angvel;
+                        //     // dx = accel.x();
+                        //     // dy = accel.y();
+                        //     // dz = accel.z();
+                        //     // rx = angvel.x();
+                        //     // ry = angvel.y();
+                        //     // rz = angvel.z();
+                            
 
+                        //     ++imu_it;
+                        // }
 
-                    if (control_it!=measurement.first.second.end() && (*control_it)->header.stamp.toSec() <= current_time)
+                       
+                        if ((imu_it+1)!=measurement.first.first.end() && (*(imu_it+1))->header.stamp.toSec() < current_time)
+                        {
+                            ++imu_it;
+                        }
+
+                        if ((imu_it+1)!=measurement.first.first.end())
+                        {
+
+                            if ((*imu_it)->header.stamp.toSec() <= current_time && (*(imu_it+1))->header.stamp.toSec() >= current_time)
+                            {
+                                double dt_1 = current_time - (*imu_it)->header.stamp.toSec();
+                                double dt_2 = (*(imu_it+1))->header.stamp.toSec() - current_time;
+                                ROS_ASSERT(dt_1 >= 0);
+                                ROS_ASSERT(dt_2 >= 0);
+                                ROS_ASSERT(dt_1 + dt_2 > 0);
+                                double w1 = dt_2 / (dt_1 + dt_2);
+                                double w2 = dt_1 / (dt_1 + dt_2);
+
+                                //ROS_WARN_STREAM("b/w imu and imu1");
+                                dx = w1 * (*imu_it)->linear_acceleration.x + w2 * (*(imu_it+1))->linear_acceleration.x;
+                                dy = w1 * (*imu_it)->linear_acceleration.y + w2 * (*(imu_it+1))->linear_acceleration.y;
+                                dz = w1 * (*imu_it)->linear_acceleration.z + w2 * (*(imu_it+1))->linear_acceleration.z;
+                                rx = w1 * (*imu_it)->angular_velocity.x + w2 * (*(imu_it+1))->angular_velocity.x;
+                                ry = w1 * (*imu_it)->angular_velocity.y + w2 * (*(imu_it+1))->angular_velocity.y;
+                                rz = w1 * (*imu_it)->angular_velocity.z + w2 * (*(imu_it+1))->angular_velocity.z;
+                            }
+                            else
+                            {
+                                //ROS_WARN_STREAM("no control between two imu");
+                                dx = (*imu_it)->linear_acceleration.x;
+                                dy = (*imu_it)->linear_acceleration.y;
+                                dz = (*imu_it)->linear_acceleration.z;
+                                rx = (*imu_it)->angular_velocity.x;
+                                ry = (*imu_it)->angular_velocity.y;
+                                rz = (*imu_it)->angular_velocity.z;
+                            }
+                        }
+                        else if (imu_it!=measurement.first.first.end()) //&& (*imu_it)->header.stamp.toSec() <= current_time
+                        {
+                            ROS_WARN_STREAM("imu1 ended!");
+                            dx = (*imu_it)->linear_acceleration.x;
+                            dy = (*imu_it)->linear_acceleration.y;
+                            dz = (*imu_it)->linear_acceleration.z;
+                            rx = (*imu_it)->angular_velocity.x;
+                            ry = (*imu_it)->angular_velocity.y;
+                            rz = (*imu_it)->angular_velocity.z;
+                        }  
+
+                        estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz), Fz, img_msg->header);
+                            
+                    }
+                    else
                     {
-                        Fz = SCALE_THRUST_INPUT * (*control_it)->collective_thrust;
+                        double dt_1 = img_t - current_time;
+                        double dt_2 = t - img_t;
+                        current_time = img_t;
+                        ROS_ASSERT(dt_1 >= 0);
+                        ROS_ASSERT(dt_2 >= 0);
+                        ROS_ASSERT(dt_1 + dt_2 > 0);
+                        double w1 = dt_2 / (dt_1 + dt_2);
+                        double w2 = dt_1 / (dt_1 + dt_2);
 
-                        ++control_it;
+
+                        double sum_sqr_rpm = pow((*control_it)->rpm[0], 2) + pow((*control_it)->rpm[1], 2) + pow((*control_it)->rpm[2], 2) + pow((*control_it)->rpm[3], 2);
+                        Fz = w1 * Fz + w2 * SCALE_THRUST_INPUT * sum_sqr_rpm * (2.03e-8/0.915);
+
+
+                        if (imu_it!=measurement.first.first.end() && (*imu_it)->header.stamp.toSec() <= img_t)
+                        {
+                            // dx = w1 * dx + w2 * (*imu_it)->linear_acceleration.x;
+                            // dy = w1 * dy + w2 * (*imu_it)->linear_acceleration.y;
+                            // dz = w1 * dz + w2 * (*imu_it)->linear_acceleration.z;
+                            // rx = w1 * rx + w2 * (*imu_it)->angular_velocity.x;
+                            // ry = w1 * ry + w2 * (*imu_it)->angular_velocity.y;
+                            // rz = w1 * rz + w2 * (*imu_it)->angular_velocity.z;
+
+                            dx = (*imu_it)->linear_acceleration.x;
+                            dy = (*imu_it)->linear_acceleration.y;
+                            dz = (*imu_it)->linear_acceleration.z;
+                            rx = (*imu_it)->angular_velocity.x;
+                            ry = (*imu_it)->angular_velocity.y;
+                            rz = (*imu_it)->angular_velocity.z;
+
+                            // //blackbird imu tilted
+                            // Eigen::Vector3d accel(dx,dy,dz);
+                            // Eigen::Vector3d angvel(rx,ry,rz);
+                            // accel = imu2body.normalized().toRotationMatrix() * accel;
+                            // angvel = imu2body.normalized().toRotationMatrix() * angvel;
+                            // dx = accel.x();
+                            // dy = accel.y();
+                            // dz = accel.z();
+                            // rx = angvel.x();
+                            // ry = angvel.y();
+                            // rz = angvel.z();
+
+                            ++imu_it;
+                        }
+
+                        estimator.processIMU(dt_1, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz), Fz, img_msg->header);
                     }
 
-                    estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz), Fz, img_msg->header);
-                }
-                else
-                {
-                    double dt_1 = img_t - current_time;
-                    double dt_2 = t - img_t;
-                    current_time = img_t;
-                    ROS_ASSERT(dt_1 >= 0);
-                    ROS_ASSERT(dt_2 >= 0);
-                    ROS_ASSERT(dt_1 + dt_2 > 0);
-                    double w1 = dt_2 / (dt_1 + dt_2);
-                    double w2 = dt_1 / (dt_1 + dt_2);
-                    dx = w1 * dx + w2 * (*imu_it)->linear_acceleration.x;
-                    dy = w1 * dy + w2 * (*imu_it)->linear_acceleration.y;
-                    dz = w1 * dz + w2 * (*imu_it)->linear_acceleration.z;
-                    rx = w1 * rx + w2 * (*imu_it)->angular_velocity.x;
-                    ry = w1 * ry + w2 * (*imu_it)->angular_velocity.y;
-                    rz = w1 * rz + w2 * (*imu_it)->angular_velocity.z;
-
-                    if (control_it!=measurement.first.second.end() && (*control_it)->header.stamp.toSec() < img_t)
-                    {
-                        Fz = SCALE_THRUST_INPUT * (*control_it)->collective_thrust;
-
-                        ++control_it;
-                    }
-
-                    estimator.processIMU(dt_1, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz), Fz, img_msg->header);
-                }
-
-                last_Fz = Fz;
+                    last_accel = Vector3d(dx,dy,dz);
+                    last_angvel = Vector3d(rx,ry,rz);
+                } 
             }
+            else
+            {
+                for (; imu_it!=measurement.first.first.end(); ++imu_it)
+                {
+
+                    double t = (*imu_it)->header.stamp.toSec();
+
+                    if (imu_it == measurement.first.first.begin()){
+                        ROS_DEBUG_STREAM("IMU begin time, acc: "<< t << "\t" << (*imu_it)->linear_acceleration.x << "\t" << (*imu_it)->linear_acceleration.y << "\t" << (*imu_it)->linear_acceleration.z);
+                    }
+
+
+                    if ((imu_it+1) == measurement.first.first.end()){
+                        ROS_DEBUG_STREAM("IMU frame end time, acc: " << t << "\t" << (*imu_it)->linear_acceleration.x << "\t" << (*imu_it)->linear_acceleration.y << "\t" << (*imu_it)->linear_acceleration.z);
+                    }
+
+                    double img_t = img_msg->header.stamp.toSec() + estimator.td;
+                    if (t <= img_t)
+                    { 
+                        if (current_time < 0)
+                            current_time = t;
+
+
+                        double dt = t - current_time;
+                        ROS_ASSERT(dt >= 0);
+                        current_time = t;
+                        
+
+                        dx = (*imu_it)->linear_acceleration.x;
+                        dy = (*imu_it)->linear_acceleration.y;
+                        dz = (*imu_it)->linear_acceleration.z;
+                        rx = (*imu_it)->angular_velocity.x;
+                        ry = (*imu_it)->angular_velocity.y;
+                        rz = (*imu_it)->angular_velocity.z;
+
+
+                        estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz), Fz, img_msg->header);
+                    }
+                    else
+                    {
+                        double dt_1 = img_t - current_time;
+                        double dt_2 = t - img_t;
+                        current_time = img_t;
+                        ROS_ASSERT(dt_1 >= 0);
+                        ROS_ASSERT(dt_2 >= 0);
+                        ROS_ASSERT(dt_1 + dt_2 > 0);
+                        double w1 = dt_2 / (dt_1 + dt_2);
+                        double w2 = dt_1 / (dt_1 + dt_2);
+                        dx = w1 * dx + w2 * (*imu_it)->linear_acceleration.x;
+                        dy = w1 * dy + w2 * (*imu_it)->linear_acceleration.y;
+                        dz = w1 * dz + w2 * (*imu_it)->linear_acceleration.z;
+                        rx = w1 * rx + w2 * (*imu_it)->angular_velocity.x;
+                        ry = w1 * ry + w2 * (*imu_it)->angular_velocity.y;
+                        rz = w1 * rz + w2 * (*imu_it)->angular_velocity.z;
+
+
+                        estimator.processIMU(dt_1, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz), Fz, img_msg->header);
+                    }
+
+                    last_Fz = Fz;
+                }
+            }
+            
+
             // set relocalization frame
             sensor_msgs::PointCloudConstPtr relo_msg = NULL;
             while (!relo_buf.empty())
@@ -550,14 +743,14 @@ int main(int argc, char **argv)
 
     registerPub(n);
 
-    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback1, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber sub_control_inputs = n.subscribe(CONTROL_TOPIC, 2000, control_inputs_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
 
     ros::Subscriber sub_ground_truth = n.subscribe(GROUND_TRUTH_TOPIC, 2000, groundtruth_callback);
-    ros::Subscriber sub_force_sensor = n.subscribe(FORCE_SENSOR_TOPIC, 2000, external_force_sensor_callback);
+    //ros::Subscriber sub_force_sensor = n.subscribe(FORCE_SENSOR_TOPIC, 2000, external_force_sensor_callback);
 
     std::thread measurement_process{VIO_MODEL_process};
     ros::spin();

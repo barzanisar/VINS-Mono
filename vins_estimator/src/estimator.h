@@ -14,6 +14,7 @@
 #include <nav_msgs/Odometry.h>
 #include <quadrotor_msgs/ControlCommand.h>
 #include <quadrotor_common/control_command.h>
+#include <blackbird/MotorRPM.h>
 #include <geometry_msgs/WrenchStamped.h>
 #include <fstream>
 
