@@ -330,7 +330,7 @@ void sim_groundtruth_callback(const nav_msgs::OdometryConstPtr &gt_msg)
           << -gt_msg->pose.pose.position.y << " "
           << -gt_msg->pose.pose.position.z << " "
           << gt_msg->pose.pose.orientation.x << " "
-          << gt_msg->pose.pose.orientation.y << " "
+          << -gt_msg->pose.pose.orientation.y << " "
           << -gt_msg->pose.pose.orientation.z << " "
           << gt_msg->pose.pose.orientation.w << endl;
     foutA.close();
@@ -370,7 +370,7 @@ void groundtruth_callback(const geometry_msgs::PoseStampedConstPtr &gt_msg)
           << -gt_msg->pose.position.y << " "
           << -gt_msg->pose.position.z << " "
           << gt_msg->pose.orientation.x << " "
-          << gt_msg->pose.orientation.y << " "
+          << -gt_msg->pose.orientation.y << " "
           << -gt_msg->pose.orientation.z << " "
           << gt_msg->pose.orientation.w << endl;
     foutA.close();
