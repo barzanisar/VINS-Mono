@@ -198,8 +198,18 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     last_imu_t = imu_msg->header.stamp.toSec();
     ROS_INFO_STREAM_ONCE("First imu_msg_stamp_sec: " << imu_msg->header.stamp.toSec());
 
+    sensor_msgs::Imu msg = *imu_msg;
+    msg.linear_acceleration.x = -imu_msg->linear_acceleration.y;
+    msg.linear_acceleration.y = -imu_msg->linear_acceleration.x;
+    msg.linear_acceleration.z = -imu_msg->linear_acceleration.z;
+    msg.angular_velocity.x = -imu_msg->angular_velocity.y;
+    msg.angular_velocity.y = -imu_msg->angular_velocity.x;
+    msg.angular_velocity.z = -imu_msg->angular_velocity.z;
+
+    sensor_msgs::ImuConstPtr msg_ptr(new sensor_msgs::Imu(msg));
+
     m_buf.lock();
-    imu_buf.push(imu_msg);
+    imu_buf.push(msg_ptr);
     m_buf.unlock();
     con.notify_one();
 
@@ -207,7 +217,7 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 
     {
         std::lock_guard<std::mutex> lg(m_state);
-        predict(imu_msg);
+        predict(msg_ptr);
         std_msgs::Header header = imu_msg->header;
         header.frame_id = "world";
         if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
@@ -317,8 +327,8 @@ void sim_groundtruth_callback(const nav_msgs::OdometryConstPtr &gt_msg)
     foutA << gt_msg->header.stamp.toSec() << " ";
     foutA.precision(5);
     foutA << gt_msg->pose.pose.position.x << " "
-          << gt_msg->pose.pose.position.y << " "
-          << gt_msg->pose.pose.position.z << " "
+          << -gt_msg->pose.pose.position.y << " "
+          << -gt_msg->pose.pose.position.z << " "
           << gt_msg->pose.pose.orientation.x << " "
           << gt_msg->pose.pose.orientation.y << " "
           << gt_msg->pose.pose.orientation.z << " "
@@ -357,8 +367,8 @@ void groundtruth_callback(const geometry_msgs::PoseStampedConstPtr &gt_msg)
     foutA << gt_msg->header.stamp.toSec() << " ";
     foutA.precision(5);
     foutA << gt_msg->pose.position.x << " "
-          << gt_msg->pose.position.y << " "
-          << gt_msg->pose.position.z << " "
+          << -gt_msg->pose.position.y << " "
+          << -gt_msg->pose.position.z << " "
           << gt_msg->pose.orientation.x << " "
           << gt_msg->pose.orientation.y << " "
           << gt_msg->pose.orientation.z << " "
