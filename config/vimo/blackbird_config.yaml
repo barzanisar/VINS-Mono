@@ -8,9 +8,9 @@ control_topic: "/blackbird/rotor_rpm"
 groundtruth_pose_topic: "/blackbird/state"  #/blackbird/pose_ref
 
 # paths to store results of the state, computation times and external force estimates
-output_path: "/home/foehnph/workspace/rss_forces/" # to store results in .csv format to evaluate with matlab
-rpg_eval_path: "/home/foehnph/workspace/ros_ws/src/rpg_trajectory_evaluation/results/laptop" # to store results in format required by rpg_trajectory_evaluation_toolbox
-simulation_name: "black_picasso_cY_3ms" 
+output_path: "/home/barza/barza-vins-out/" # to store results in .csv format to evaluate with matlab
+rpg_eval_path: "/home/barza/catkin_ws/src/rpg_trajectory_evaluation/results/laptop_test" # to store results in format required by rpg_trajectory_evaluation_toolbox
+simulation_name: "test" #"black_picasso_cY_3ms" 
 
 #camera calibration 
 model_type: PINHOLE
