@@ -15,7 +15,7 @@ vector<uchar> r_status;
 vector<float> r_err;
 queue<sensor_msgs::ImageConstPtr> img_buf;
 
-ros::Publisher pub_img,pub_match;
+ros::Publisher pub_img,pub_match, pub_active_passive_img;
 ros::Publisher pub_restart;
 
 FeatureTracker trackerData[NUM_OF_CAM];
@@ -25,6 +25,33 @@ bool first_image_flag = true;
 double last_image_time = 0;
 bool init_pub = 0;
 
+void active_passive_callback(const sensor_msgs::PointCloudConstPtr & msg)
+{
+    cv::Mat img(ROW, COL, CV_8UC3, cv::Scalar(255, 255, 255));
+
+    for(int i = 0; i< msg->points.size(); ++i)
+    {
+        cv::Point2f uv_point(msg->points[i].x, msg->points[i].y);
+        const int id_of_point = msg->channels[0].values[i];
+        const int track_len = msg->channels[1].values[i];
+        cv::Scalar color = msg->points[i].z > 0 ? cv::Scalar(0, 0, 255 * track_len) : cv::Scalar(255 * track_len, 0, 0);
+        cv::circle(img, uv_point, 2, color, 2);
+        if (msg->points[i].z > 0)
+            cv::putText(img, std::to_string(id_of_point), uv_point, 
+                        cv::FONT_HERSHEY_DUPLEX, 0.5, CV_RGB(118, 185, 0), 0.5);
+
+        // ROS_INFO_STREAM("active_passive_callback " << uv_point.x << " " << uv_point.y 
+        // << " " << id_of_point << " " << track_len);
+    }
+
+    cv_bridge::CvImage cv_img;
+    cv_img.header = msg->header;
+    cv_img.encoding = "bgr8";
+    cv_img.image = img;
+    sensor_msgs::Image img_msg;
+    cv_img.toImageMsg(img_msg);
+    pub_active_passive_img.publish(img_msg);
+}
 void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
     if(first_image_flag)
@@ -233,6 +260,8 @@ int main(int argc, char **argv)
     pub_img = n.advertise<sensor_msgs::PointCloud>("feature", 1000);
     pub_match = n.advertise<sensor_msgs::Image>("feature_img",1000);
     pub_restart = n.advertise<std_msgs::Bool>("restart",1000);
+    //ros::Subscriber sub_ap_pc = n.subscribe("/rise_node/active_passive_pc", 100, active_passive_callback);
+    //pub_active_passive_img = n.advertise<sensor_msgs::Image>("active_passive_img", 1000);
     /*
     if (SHOW_TRACK)
         cv::namedWindow("vis", cv::WINDOW_NORMAL);
